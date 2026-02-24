@@ -8,20 +8,27 @@ import (
 )
 
 type Config struct {
-	Env      string
-	HTTPPort string
-
+	// shared
+	Env            string
 	JWTSecret      string
 	AccessTokenTTL time.Duration
+
+	// auth
+	HTTPPort string
+
+	// gateway
+	GatewayHTTPPort string
+	AuthUpstream    string
 }
 
 // 로딩 코드
 func Load() (Config, error) {
 	cfg := Config{
-		Env:      getEnv("APP_ENV", "dev"),
-		HTTPPort: getEnv("HTTP_PORT", "8080"),
-
-		JWTSecret: strings.TrimSpace(os.Getenv("JWT_SECRET")),
+		Env:             getEnv("APP_ENV", "dev"),
+		JWTSecret:       strings.TrimSpace(os.Getenv("JWT_SECRET")),
+		HTTPPort:        getEnv("HTTP_PORT", "8080"),
+		GatewayHTTPPort: getEnv("GATEWAY_PORT", "8090"),
+		AuthUpstream:    getEnv("AUTH_UPSTREAM", "http://localhost:8080"),
 	}
 
 	ttlStr := getEnv("ACCESS_TOKEN_TTL", "15m")
