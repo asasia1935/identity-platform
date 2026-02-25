@@ -7,7 +7,7 @@ import (
 	"github.com/asasia1935/identity-platform/internal/auth"
 	"github.com/asasia1935/identity-platform/internal/config"
 	"github.com/asasia1935/identity-platform/internal/gateway"
-	"github.com/asasia1935/identity-platform/internal/mw"
+	gwmw "github.com/asasia1935/identity-platform/internal/gateway/mw"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -19,21 +19,20 @@ func NewRouter(tm *auth.Manager, authProxy http.HandlerFunc) *gin.Engine {
 		c.String(http.StatusOK, "pong")
 	})
 
-	// 로그인/리프레시 같은 Auth 전용 서비스 API는 Auth로 그냥 프록시
-	// Gateway: /api/auth/login  -> Auth: /auth/login
-	r.Any("/api/auth/*any", func(c *gin.Context) {
+	// API 그룹 생성 (공개/보호 API 구분)
+	api := r.Group("/api")
+
+	// 공개 (로그인/리프레시 같은 Auth 전용 서비스 API는 Auth로 그냥 프록시)
+	api.Any("/auth/*any", func(c *gin.Context) {
 		authProxy(c.Writer, c.Request)
 	})
 
-	// 보호 API는 Gateway에서 검증하고(미들웨어), 업스트림으로 전달
-	// 예시로 /api/me 를 Auth의 /me 로 프록시
-	r.GET("/api/me", mw.AuthRequired(tm), func(c *gin.Context) {
-		// 미들웨어가 user를 세팅해둔 상태라고 가정
-		user, _ := c.Get("user")
+	// 보호: 여기로 들어오는 순간 검증 + 사용자 주입 완료 (/me 같은 )
+	protected := api.Group("/")
+	protected.Use(gwmw.AuthRequiredAndInjectUser(tm))
 
-		// downstream(업스트림)으로 사용자 주입 (나중에 Meetup에도 똑같이 씀)
-		c.Request.Header.Set("X-User-Id", user.(string))
-
+	// 이제 핸들러는 "프록시만" 하면 됨 (테스트도 매우 쉬움)
+	protected.GET("/me", func(c *gin.Context) {
 		authProxy(c.Writer, c.Request)
 	})
 
