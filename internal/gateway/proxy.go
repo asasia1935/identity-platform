@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -33,6 +34,18 @@ func NewReverseProxyHandler(targetBaseURL string, stripPrefix string) (func(http
 		if r.Header.Get("X-Forwarded-Proto") == "" {
 			r.Header.Set("X-Forwarded-Proto", "http")
 		}
+	}
+
+	// 업스트림 장애 시 응답 통일 + 로그 남기기 가능
+	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, e error) {
+		// 로그: 어떤 업스트림으로, 어떤 요청이 실패했는지 추적 가능
+		log.Printf("[gateway] upstream error: method=%s path=%s target=%s err=%v",
+			r.Method, r.URL.Path, targetBaseURL, e)
+
+		// 클라이언트 응답: JSON 통일
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		w.WriteHeader(http.StatusBadGateway) // 502
+		_, _ = w.Write([]byte(`{"error":"upstream unavailable"}`))
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
