@@ -56,6 +56,7 @@ func NewRouter(tm *auth.Manager) *gin.Engine {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "token issue failed",
 			})
+			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{

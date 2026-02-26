@@ -59,15 +59,20 @@ func (m *Manager) VerifyAccessToken(rawToken string) (*AccessTokenClaims, error)
 	})
 
 	if err != nil {
-		return nil, err
+		// 토큰 만료/무효 (errors.Is로 에러 확인)
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
+		// 그 외는 전부 invalid로 취급 (서명불일치/포맷오류/기타)
+		return nil, ErrTokenInvalid
 	}
 
-	if !token.Valid {
-		return nil, jwt.ErrTokenInvalidClaims
+	if token == nil || !token.Valid {
+		return nil, ErrTokenInvalid
 	}
 
 	if claims.Subject == "" {
-		return nil, jwt.ErrTokenInvalidClaims
+		return nil, ErrTokenInvalid
 	}
 
 	return &claims, nil

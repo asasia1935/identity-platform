@@ -14,7 +14,7 @@ func AuthRequired(tm *auth.Manager) gin.HandlerFunc {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "missing authorization header",
+				"error": "unauthorized",
 			})
 			c.Abort()
 			return
@@ -23,7 +23,7 @@ func AuthRequired(tm *auth.Manager) gin.HandlerFunc {
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid authorization format",
+				"error": "unauthorized",
 			})
 			c.Abort()
 			return
@@ -34,7 +34,7 @@ func AuthRequired(tm *auth.Manager) gin.HandlerFunc {
 		claims, err := tm.VerifyAccessToken(rawToken)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{
-				"error": "invalid token",
+				"error": "unauthorized",
 			})
 			c.Abort()
 			return
