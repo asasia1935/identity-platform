@@ -1,0 +1,29 @@
+version: "3.9"
+
+services:
+  auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["./auth"]
+    environment:
+      - JWT_SECRET=dev-secret-change-me
+      - ACCESS_TOKEN_TTL=15m
+      - HTTP_PORT=8080
+    expose:
+      - "8080"   # 🔥 외부 노출 안 함 (중요)
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["./gateway"]
+    ports:
+      - "8090:8090"   # 🔥 외부 공개는 Gateway만
+    environment:
+      - JWT_SECRET=dev-secret-change-me
+      - ACCESS_TOKEN_TTL=15m
+      - GATEWAY_PORT=8090
+      - AUTH_UPSTREAM=http://auth:8080
+    depends_on:
+      - auth
