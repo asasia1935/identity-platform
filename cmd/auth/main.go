@@ -14,9 +14,13 @@ import (
 func NewRouter(tm *auth.Manager) *gin.Engine {
 	r := gin.Default()
 
+	// Auth Health Check는 Gateway 체크 예외
 	r.GET("/ping", func(c *gin.Context) {
 		c.String(http.StatusOK, "pong")
 	})
+
+	// 아래 API는 게이트웨이를 필수로 거쳐야함
+	r.Use(mw.GatewayRequired())
 
 	r.GET("/me", mw.AuthRequired(tm), func(c *gin.Context) {
 		user, _ := c.Get("user")
