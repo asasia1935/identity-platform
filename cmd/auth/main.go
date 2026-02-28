@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/asasia1935/identity-platform/internal/auth"
 	"github.com/asasia1935/identity-platform/internal/config"
@@ -13,6 +14,12 @@ import (
 
 func NewRouter(tm *auth.Manager) *gin.Engine {
 	r := gin.Default()
+
+	// 504 타임아웃 테스트용 느린 서버
+	r.GET("/auth/slow", func(c *gin.Context) {
+		time.Sleep(10 * time.Second)
+		c.String(200, "ok")
+	})
 
 	// Auth Health Check는 Gateway 체크 예외
 	r.GET("/ping", func(c *gin.Context) {
