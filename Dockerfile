@@ -14,6 +14,8 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o gateway ./cmd/gateway
 FROM alpine:latest
 WORKDIR /app
 
+RUN apk add --no-cache wget
+
 COPY --from=builder /app/auth .
 COPY --from=builder /app/gateway .
 
