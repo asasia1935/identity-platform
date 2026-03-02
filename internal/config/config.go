@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,11 @@ type Config struct {
 	// gateway
 	GatewayHTTPPort string
 	AuthUpstream    string
+
+	// redis
+	RedisAddr     string
+	RedisPassword string
+	RedisDB       int
 }
 
 // 로딩 코드
@@ -29,6 +35,8 @@ func Load() (Config, error) {
 		HTTPPort:        getEnv("HTTP_PORT", "8080"),
 		GatewayHTTPPort: getEnv("GATEWAY_PORT", "8090"),
 		AuthUpstream:    getEnv("AUTH_UPSTREAM", "http://localhost:8080"),
+		RedisAddr:       getEnv("REDIS_ADDR", "localhost:6379"),
+		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 	}
 
 	ttlStr := getEnv("ACCESS_TOKEN_TTL", "15m")
@@ -42,6 +50,13 @@ func Load() (Config, error) {
 	if cfg.JWTSecret == "" {
 		return Config{}, errors.New("JWT_SECRET is required")
 	}
+
+	dbStr := getEnv("REDIS_DB", "0")
+	db, err := strconv.Atoi(dbStr)
+	if err != nil {
+		return Config{}, errors.New("invalid REDIS_DB (must be integer)")
+	}
+	cfg.RedisDB = db
 
 	return cfg, nil
 }

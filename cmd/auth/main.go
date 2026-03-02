@@ -8,6 +8,7 @@ import (
 	"github.com/asasia1935/identity-platform/internal/auth"
 	"github.com/asasia1935/identity-platform/internal/config"
 	"github.com/asasia1935/identity-platform/internal/mw"
+	"github.com/asasia1935/identity-platform/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -85,6 +86,16 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	rdb, err := store.NewRedisClient(store.RedisConfig{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       cfg.RedisDB,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer rdb.Close()
 
 	tm, err := auth.NewManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 	if err != nil {
