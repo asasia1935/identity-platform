@@ -132,15 +132,22 @@ identity-platform/
 
 ---
 
-## 🚧 Next Phase (Planned)
+## 🚧 Next Phase (Redis Integration - Identity MVP v1)
 
-- Redis 기반 세션 저장
-- Refresh Token Rotation
-- Idempotency Key 처리
-- Rate Limiting
-- Structured Logging + traceID
-- Async Audit Hook
-- Observability 확장
+- Redis 설정 및 연결 구성
+- Redis 기반 세션 관리 (TTL 기반 자동 만료 + Logout 시 DEL)
+- Refresh Token Rotation (현재 유효 refresh jti 1개 유지)
+- Refresh Idempotency 처리 (SET NX + TTL 기반 중복 요청 방지)
+- Basic Rate Limiting (INCR + TTL 기반 고정 윈도우)
+
+---
+
+## 🔭 Future Enhancements (Post-MVP)
+
+- Structured Logging (traceID 포함)
+- Async Audit Hook 연동
+- Observability 확장 (metrics / error classification)
+- Advanced Security Policies (reuse detection, multi-device session 등)
 
 ---
 
