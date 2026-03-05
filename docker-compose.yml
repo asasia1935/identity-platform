@@ -1,6 +1,18 @@
 version: "3.9"
 
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: identity-redis
+    ports:
+      - "6379:6379" # 로컬에서 redis-cli로 확인하고 싶으면 유지, 싫으면 지워도 됨
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 2s
+      retries: 20
+      start_period: 3s
+
   auth:
     build:
       context: .
@@ -10,8 +22,14 @@ services:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
       - HTTP_PORT=8080
+      - REDIS_ADDR=redis:6379
+      - REDIS_PASSWORD=
+      - REDIS_DB=0
     expose:
-      - "8080"   # 🔥 외부 노출 안 함 (중요)
+      - "8080"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/ping"]
       interval: 5s
@@ -25,11 +43,12 @@ services:
       dockerfile: Dockerfile
     command: ["./gateway"]
     ports:
-      - "8090:8090"   # 🔥 외부 공개는 Gateway만
+      - "8090:8090"
     environment:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
       - GATEWAY_PORT=8090
       - AUTH_UPSTREAM=http://auth:8080
     depends_on:
-      - auth
+      auth:
+        condition: service_healthy
