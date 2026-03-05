@@ -109,13 +109,36 @@ func NewRouter(tm *auth.TokenManager, ss *auth.SessionStore) *gin.Engine {
 
 		// 세션 추가
 		if err := ss.Create(c.Request.Context(), req.Username); err != nil {
-			c.JSON(500, gin.H{"error": "internal"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
 			return
 		}
 
 		c.JSON(http.StatusOK, gin.H{
 			"accessToken": token,
 		})
+	})
+
+	// POST /auth/logout
+	r.POST("/auth/logout", mw.JWTRequired(tm), func(c *gin.Context) {
+		v, ok := c.Get("user")
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		uid, ok := v.(string)
+		if !ok || uid == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// 세션 삭제
+		if err := ss.Delete(c.Request.Context(), uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
+		c.Status(204)
 	})
 
 	return r
