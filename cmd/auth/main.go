@@ -14,7 +14,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewRouter(tm *auth.Manager) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, ss *auth.SessionStore) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -54,8 +54,20 @@ func NewRouter(tm *auth.Manager) *gin.Engine {
 	// 아래 API는 게이트웨이를 필수로 거쳐야함
 	r.Use(mw.GatewayRequired())
 
-	r.GET("/me", mw.AuthRequired(tm), func(c *gin.Context) {
+	r.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
+
 		user, _ := c.Get("user")
+
+		ok, err := ss.Exists(c.Request.Context(), user.(string))
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"error": "internal"})
+			return
+		}
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"user": user,
 		})
@@ -95,6 +107,12 @@ func NewRouter(tm *auth.Manager) *gin.Engine {
 			return
 		}
 
+		// 세션 추가
+		if err := ss.Create(c.Request.Context(), req.Username); err != nil {
+			c.JSON(500, gin.H{"error": "internal"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"accessToken": token,
 		})
@@ -121,11 +139,16 @@ func main() {
 	}
 	defer rdb.Close()
 
-	tm, err := auth.NewManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(tm)
+	ss, err := auth.NewSessionStore(rdb, cfg.SessionTTL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := NewRouter(tm, ss)
 	log.Fatal(r.Run(":" + cfg.HTTPPort))
 }

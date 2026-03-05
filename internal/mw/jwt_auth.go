@@ -8,7 +8,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRequired(tm *auth.Manager) gin.HandlerFunc {
+// JWT 검증 미들웨어
+func JWTRequired(tm *auth.TokenManager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Authorization: Bearer <token>
 		authHeader := c.GetHeader("Authorization")

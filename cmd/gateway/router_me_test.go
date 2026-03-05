@@ -18,10 +18,10 @@ import (
 )
 
 // 테스트용 토큰 매니저 생성 헬퍼 함수 (고정 시크릿, 짧은 TTL)
-func newTestTokenManager(t *testing.T) *auth.Manager {
+func newTestTokenManager(t *testing.T) *auth.TokenManager {
 	t.Helper()
 
-	tm, err := auth.NewManager("test-secret", 15*time.Minute)
+	tm, err := auth.NewTokenManager("test-secret", 15*time.Minute)
 	if err != nil {
 		t.Fatalf("failed to create token manager: %v", err)
 	}
@@ -35,10 +35,10 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 
 	tm := newTestTokenManager(t)
 
-	// Auth 라우터(/me + GatewayRequired + AuthRequired 만으로 최소 설정)
+	// Auth 라우터(/me + GatewayRequired + JWTRequired 만으로 최소 설정)
 	authRouter := gin.New()
 	authRouter.Use(mw.GatewayRequired())
-	authRouter.GET("/me", mw.AuthRequired(tm), func(c *gin.Context) {
+	authRouter.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
 		user, _ := c.Get("user")
 		c.JSON(http.StatusOK, gin.H{"user": user})
 	})

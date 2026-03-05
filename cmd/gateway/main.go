@@ -14,7 +14,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewRouter(tm *auth.Manager, authProxy http.HandlerFunc) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, authProxy http.HandlerFunc) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// 게이트웨이가 해당 정책으로 검증할 수 있도록 매니저 생성
-	tm, err := auth.NewManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
