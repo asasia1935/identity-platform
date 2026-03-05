@@ -7,21 +7,21 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-type Manager struct {
-	secret []byte
-	ttl    time.Duration
+type TokenManager struct {
+	secret    []byte
+	accessTTL time.Duration
 }
 
-func NewManager(jwtSecret string, accessTTL time.Duration) (*Manager, error) {
+func NewTokenManager(jwtSecret string, accessTTL time.Duration) (*TokenManager, error) {
 	if jwtSecret == "" {
 		return nil, errors.New("JWT_SECRET is required")
 	}
 	if accessTTL <= 0 {
 		return nil, errors.New("ACCESS_TOKEN_TTL must be positive")
 	}
-	return &Manager{
-		secret: []byte(jwtSecret),
-		ttl:    accessTTL,
+	return &TokenManager{
+		secret:    []byte(jwtSecret),
+		accessTTL: accessTTL,
 	}, nil
 }
 
@@ -31,13 +31,13 @@ type AccessTokenClaims struct {
 }
 
 // JWT 생성 코드
-func (m *Manager) GenerateAccessToken(userName string) (string, error) {
+func (m *TokenManager) GenerateAccessToken(userName string) (string, error) {
 	now := time.Now()
 
 	claims := AccessTokenClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   userName,
-			ExpiresAt: jwt.NewNumericDate(now.Add(m.ttl)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}
@@ -47,7 +47,7 @@ func (m *Manager) GenerateAccessToken(userName string) (string, error) {
 }
 
 // JWT 검증 코드
-func (m *Manager) VerifyAccessToken(rawToken string) (*AccessTokenClaims, error) {
+func (m *TokenManager) VerifyAccessToken(rawToken string) (*AccessTokenClaims, error) {
 	var claims AccessTokenClaims
 
 	parser := jwt.NewParser(

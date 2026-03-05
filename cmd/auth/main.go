@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -13,8 +14,31 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewRouter(tm *auth.Manager) *gin.Engine {
-	r := gin.Default()
+func NewRouter(tm *auth.TokenManager, ss *auth.SessionStore) *gin.Engine {
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(mw.RequestID())
+	r.Use(gin.LoggerWithFormatter(func(p gin.LogFormatterParams) string {
+		rid := p.Request.Header.Get(mw.RequestIDHeader) // 헤더에서 꺼내기
+		// gin.Context Keys에서 꺼내려면 Custom middleware가 필요함(Formatter는 gin.Context를 직접 못 받음)
+
+		// 상태코드가 400 이상일때 플래그 WARN으로 변경
+		level := "INFO"
+		if p.StatusCode >= 400 {
+			level = "WARN"
+		}
+
+		// 경로 로그 추가
+		path := p.Path
+		if path == "" {
+			path = p.Request.URL.Path
+		}
+
+		return fmt.Sprintf(
+			"level=%s svc=%s rid=%s method=%s path=%s status=%d latency_ms=%d ip=%s\n",
+			level, "gateway", rid, p.Method, path, p.StatusCode, p.Latency.Milliseconds(), p.ClientIP,
+		)
+	}))
 
 	// 504 타임아웃 테스트용 느린 서버
 	r.GET("/auth/slow", func(c *gin.Context) {
@@ -30,8 +54,20 @@ func NewRouter(tm *auth.Manager) *gin.Engine {
 	// 아래 API는 게이트웨이를 필수로 거쳐야함
 	r.Use(mw.GatewayRequired())
 
-	r.GET("/me", mw.AuthRequired(tm), func(c *gin.Context) {
+	r.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
+
 		user, _ := c.Get("user")
+
+		ok, err := ss.Exists(c.Request.Context(), user.(string))
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"error": "internal"})
+			return
+		}
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"user": user,
 		})
@@ -71,9 +107,38 @@ func NewRouter(tm *auth.Manager) *gin.Engine {
 			return
 		}
 
+		// 세션 추가
+		if err := ss.Create(c.Request.Context(), req.Username); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"accessToken": token,
 		})
+	})
+
+	// POST /auth/logout
+	r.POST("/auth/logout", mw.JWTRequired(tm), func(c *gin.Context) {
+		v, ok := c.Get("user")
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		uid, ok := v.(string)
+		if !ok || uid == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// 세션 삭제
+		if err := ss.Delete(c.Request.Context(), uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
+		c.Status(204)
 	})
 
 	return r
@@ -97,11 +162,16 @@ func main() {
 	}
 	defer rdb.Close()
 
-	tm, err := auth.NewManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(tm)
+	ss, err := auth.NewSessionStore(rdb, cfg.SessionTTL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := NewRouter(tm, ss)
 	log.Fatal(r.Run(":" + cfg.HTTPPort))
 }

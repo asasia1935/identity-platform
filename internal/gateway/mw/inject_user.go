@@ -8,9 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func AuthRequiredAndInjectUser(tm *auth.Manager) gin.HandlerFunc {
+func AuthRequiredAndInjectUser(tm *auth.TokenManager) gin.HandlerFunc {
 	// 기존 AuthRequired 미들웨어로 인증 먼저 수행
-	authMw := appmw.AuthRequired(tm)
+	authMw := appmw.JWTRequired(tm)
 
 	return func(c *gin.Context) {
 		authMw(c)

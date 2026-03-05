@@ -25,6 +25,7 @@ type Config struct {
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+	SessionTTL    time.Duration
 }
 
 // 로딩 코드
@@ -39,12 +40,12 @@ func Load() (Config, error) {
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 	}
 
-	ttlStr := getEnv("ACCESS_TOKEN_TTL", "15m")
-	ttl, err := time.ParseDuration(ttlStr) // Duration으로 파싱
+	accessTokenTTLStr := getEnv("ACCESS_TOKEN_TTL", "15m")
+	accessTokenTTL, err := time.ParseDuration(accessTokenTTLStr) // Duration으로 파싱
 	if err != nil {
 		return Config{}, errors.New("invalid ACCESS_TOKEN_TTL (e.g. 15m, 1h)")
 	}
-	cfg.AccessTokenTTL = ttl
+	cfg.AccessTokenTTL = accessTokenTTL
 
 	// 없을 경우 바로 에러로 종료
 	if cfg.JWTSecret == "" {
@@ -57,6 +58,13 @@ func Load() (Config, error) {
 		return Config{}, errors.New("invalid REDIS_DB (must be integer)")
 	}
 	cfg.RedisDB = db
+
+	sessionTTLStr := getEnv("SESSION_TTL", "15m")
+	sessionTTL, err := time.ParseDuration(sessionTTLStr) // Duration으로 파싱
+	if err != nil {
+		return Config{}, errors.New("invalid SESSION_TTL (e.g. 15m, 1h)")
+	}
+	cfg.SessionTTL = sessionTTL
 
 	return cfg, nil
 }
