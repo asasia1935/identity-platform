@@ -14,7 +14,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewRouter(tm *auth.TokenManager, ss *auth.SessionStore) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, ss auth.SessionStore) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -167,7 +167,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	ss, err := auth.NewSessionStore(rdb, cfg.SessionTTL)
+	ss, err := auth.NewRedisSessionStore(rdb, cfg.SessionTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
