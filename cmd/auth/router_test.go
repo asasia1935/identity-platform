@@ -1,10 +1,7 @@
-//go:build legacytests
-
-// 세션 추가 전의 테스트는 임시로 빌드 X -> 추후 세션 구조 완성되었을때 테스트 수정하여 붙이는 것으로 결정
-
 package main
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,6 +11,26 @@ import (
 
 	"github.com/asasia1935/identity-platform/internal/auth"
 )
+
+// fakeSessionStoreFailOnCall -> 세션 스토어가 호출되면 테스트 실패하도록 하는 테스트용 세션 스토어 Fake 구현체 (미들웨어 검증용이기 때문에 세션 스토어가 호출되어서 실패하면 안됨)
+type fakeSessionStoreFailOnCall struct {
+	t *testing.T
+}
+
+func (s *fakeSessionStoreFailOnCall) Create(ctx context.Context, uid string) error {
+	s.t.Fatalf("session store should not be called in this test")
+	return nil
+}
+
+func (s *fakeSessionStoreFailOnCall) Exists(ctx context.Context, uid string) (bool, error) {
+	s.t.Fatalf("session store should not be called in this test")
+	return false, nil
+}
+
+func (s *fakeSessionStoreFailOnCall) Delete(ctx context.Context, uid string) error {
+	s.t.Fatalf("session store should not be called in this test")
+	return nil
+}
 
 // 테스트용 토큰 매니저 생성 헬퍼 함수 (고정 시크릿, 짧은 TTL)
 func newTestTokenManager(t *testing.T) *auth.TokenManager {
@@ -33,8 +50,9 @@ func TestAuthRouter_BlocksWhenGatewayHeaderMissing(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tm := newTestTokenManager(t)
+	ss := &fakeSessionStoreFailOnCall{t: t}
 
-	r := NewRouter(tm)
+	r := NewRouter(tm, ss)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	w := httptest.NewRecorder()
@@ -53,7 +71,9 @@ func TestAuthRouter_AllowsGatewayHeaderButRejectsWithoutToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tm := newTestTokenManager(t)
-	r := NewRouter(tm)
+	ss := &fakeSessionStoreFailOnCall{t: t}
+
+	r := NewRouter(tm, ss)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.Header.Set("X-Gateway-Verified", "true")
