@@ -2,12 +2,11 @@
 package mw
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"net/http"
 	"strconv"
 	"time"
 
+	"github.com/asasia1935/identity-platform/internal/util"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,14 +24,15 @@ const (
 	requestIDMaxLen = 64
 )
 
-// generateRequestID : 16 바이트의 랜덤 값을 32자리의 16진수 값(ID)으로 만들어 반환
+// generateRequestID : 요청 추적용 ID 생성 (랜덤 실패 시 fallback 사용)
 func generateRequestID() string {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		// fallback: keep it unique-ish to avoid collisions in logs
+	id, err := util.NewRandomID()
+	if err != nil {
+		// fallback: 랜덤 생성 실패 시 로그 추적용 임시 ID 생성 (충돌 가능성 있음)
 		return "reqid-fallback-" + strconv.FormatInt(time.Now().UnixNano(), 10)
 	}
-	return hex.EncodeToString(b)
+
+	return id
 }
 
 // isValidRequestID : RequestID 검증 함수
