@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/asasia1935/identity-platform/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore) *gin.Engine {
@@ -153,7 +155,64 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 		}
 
 		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
-		c.Status(204)
+		c.Status(http.StatusNoContent)
+	})
+
+	// POST /auth/refresh -> Access Token 재발급 API
+	r.POST("/auth/refresh", func(c *gin.Context) {
+		// Refresh 요청 바디 구조 정의
+		type RefreshRequest struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+
+		// Refresh 요청 바디 바인딩
+		var req RefreshRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_request"})
+			return
+		}
+
+		// Refresh Token 검증 (클레임까지 반환)
+		claims, err := tm.VerifyRefreshToken(req.RefreshToken)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// Refresh Token에서 UID와 JTI 추출
+		uid := claims.Subject
+		// JTI는 Refresh Token의 고유 식별자 (claims에서 추출)
+
+		// Redis에서 현재 유효한 Refresh Token의 JTI 조회
+		currentJTI, err := rs.Get(c.Request.Context(), uid)
+		if err != nil {
+			// Redis에 키가 없는 경우 (즉, 유효한 Refresh Token이 없는 경우) -> 401 Unauthorized
+			if errors.Is(err, redis.Nil) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+				return
+			}
+			// 그 외 Redis 오류는 서버 오류로 처리
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// Redis에서 조회한 JTI와 Refresh Token의 JTI가 일치하는지 검증 (불일치하면 401 Unauthorized)
+		if currentJTI != claims.JTI {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// Access Token 재발급
+		accessToken, err := tm.GenerateAccessToken(uid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// Access Token만 재발급해서 반환 (Refresh Token은 그대로 유지 -> Rotation은 추후에 구현)
+		c.JSON(http.StatusOK, gin.H{
+			"access_token": accessToken,
+		})
 	})
 
 	return r

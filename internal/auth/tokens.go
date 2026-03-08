@@ -112,3 +112,32 @@ func (m *TokenManager) GenerateRefreshToken(uid string) (string, string, error) 
 
 	return signed, jti, nil
 }
+
+func (m *TokenManager) VerifyRefreshToken(rawToken string) (*RefreshTokenClaims, error) {
+	var claims RefreshTokenClaims
+
+	parser := jwt.NewParser(
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+	)
+
+	token, err := parser.ParseWithClaims(rawToken, &claims, func(t *jwt.Token) (any, error) {
+		return m.secret, nil
+	})
+
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, ErrTokenExpired
+		}
+		return nil, ErrTokenInvalid
+	}
+
+	if token == nil || !token.Valid {
+		return nil, ErrTokenInvalid
+	}
+
+	if claims.Subject == "" || claims.JTI == "" {
+		return nil, ErrTokenInvalid
+	}
+
+	return &claims, nil
+}
