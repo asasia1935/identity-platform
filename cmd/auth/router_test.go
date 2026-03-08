@@ -43,6 +43,26 @@ func newTestTokenManager(t *testing.T) *auth.TokenManager {
 	return tm
 }
 
+// fakeRefreshStoreFailOnCall -> 리프레시 스토어가 호출되면 테스트 실패하도록 하는 테스트용 리프레시 스토어 Fake 구현체 (미들웨어 검증용이기 때문에 리프레시 스토어가 호출되어서 실패하면 안됨)
+type fakeRefreshStoreFailOnCall struct {
+	t *testing.T
+}
+
+func (s *fakeRefreshStoreFailOnCall) Save(ctx context.Context, uid, jti string) error {
+	s.t.Fatalf("refresh store should not be called in this test")
+	return nil
+}
+
+func (s *fakeRefreshStoreFailOnCall) Get(ctx context.Context, uid string) (string, error) {
+	s.t.Fatalf("refresh store should not be called in this test")
+	return "", nil
+}
+
+func (s *fakeRefreshStoreFailOnCall) Delete(ctx context.Context, uid string) error {
+	s.t.Fatalf("refresh store should not be called in this test")
+	return nil
+}
+
 // TestAuthRouter_BlocksWhenGatewayHeaderMissing -> 보호된 엔드포인트(/me)가 반드시 Gateway를 통해서만 접근되도록 보장하는 테스트
 // 헤더 없이 요청이 들어오면 미들웨어에 의해 403 Forbidden으로 차단됨
 // (해당 테스트는 Auth 서비스가 게이트웨이 경유 계약을 유지하는지 확인하는 회귀 테스트(기능이 퇴보했는지 확인하는 테스트))
@@ -51,8 +71,9 @@ func TestAuthRouter_BlocksWhenGatewayHeaderMissing(t *testing.T) {
 
 	tm := newTestTokenManager(t)
 	ss := &fakeSessionStoreFailOnCall{t: t}
+	rs := &fakeRefreshStoreFailOnCall{t: t}
 
-	r := NewRouter(tm, ss)
+	r := NewRouter(tm, ss, rs)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	w := httptest.NewRecorder()
@@ -72,8 +93,9 @@ func TestAuthRouter_AllowsGatewayHeaderButRejectsWithoutToken(t *testing.T) {
 
 	tm := newTestTokenManager(t)
 	ss := &fakeSessionStoreFailOnCall{t: t}
+	rs := &fakeRefreshStoreFailOnCall{t: t}
 
-	r := NewRouter(tm, ss)
+	r := NewRouter(tm, ss, rs)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.Header.Set("X-Gateway-Verified", "true")

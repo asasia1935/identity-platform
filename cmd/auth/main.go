@@ -14,7 +14,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func NewRouter(tm *auth.TokenManager, ss auth.SessionStore) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -98,12 +98,19 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore) *gin.Engine {
 			return
 		}
 
-		// JWT의 token 반환
-		token, err := tm.GenerateAccessToken(req.Username)
+		// Access Token 생성
+		access, err := tm.GenerateAccessToken(req.Username)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "token issue failed",
 			})
+			return
+		}
+
+		// Refresh Token은 JTI도 같이 반환 (클레임에 넣어서 반환)
+		refresh, jti, err := tm.GenerateRefreshToken(req.Username)
+		if err != nil {
+			c.JSON(500, gin.H{"error": "internal"})
 			return
 		}
 
@@ -113,8 +120,16 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore) *gin.Engine {
 			return
 		}
 
+		// refresh jti 저장
+		if err := rs.Save(c.Request.Context(), req.Username, jti); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// Access/Refresh Token 모두 반환
 		c.JSON(http.StatusOK, gin.H{
-			"accessToken": token,
+			"accessToken":  access,
+			"refreshToken": refresh,
 		})
 	})
 
@@ -172,6 +187,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(tm, ss)
+	rs, err := auth.NewRedisRefreshStore(rdb, cfg.RefreshTokenTTL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := NewRouter(tm, ss, rs)
 	log.Fatal(r.Run(":" + cfg.HTTPPort))
 }

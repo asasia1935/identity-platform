@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/asasia1935/identity-platform/internal/util"
 	"github.com/golang-jwt/jwt/v5"
 )
 
@@ -76,4 +77,38 @@ func (m *TokenManager) VerifyAccessToken(rawToken string) (*AccessTokenClaims, e
 	}
 
 	return &claims, nil
+}
+
+// RefreshToken 전용 Claims 구조체
+type RefreshTokenClaims struct {
+	JTI string `json:"jti"` // 고유 식별자 (JWT ID)
+	jwt.RegisteredClaims
+}
+
+// Refresh Token 생성 코드
+func (m *TokenManager) GenerateRefreshToken(uid string) (string, string, error) {
+	now := time.Now()
+
+	jti, err := util.NewRandomID()
+	if err != nil {
+		return "", "", err
+	}
+
+	claims := RefreshTokenClaims{
+		JTI: jti,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   uid,
+			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	signed, err := token.SignedString(m.secret)
+	if err != nil {
+		return "", "", err
+	}
+
+	return signed, jti, nil
 }
