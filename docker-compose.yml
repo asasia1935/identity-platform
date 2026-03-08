@@ -21,6 +21,7 @@ services:
     environment:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
+      - REFRESH_TOKEN_TTL=168h # 7d
       - HTTP_PORT=8080
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=
@@ -47,6 +48,7 @@ services:
     environment:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
+      - REFRESH_TOKEN_TTL=168h # 7d
       - GATEWAY_PORT=8090
       - AUTH_UPSTREAM=http://auth:8080
     depends_on:
