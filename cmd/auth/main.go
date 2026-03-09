@@ -172,6 +172,12 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			return
 		}
 
+		// Refresh 요청 바디에 빈 문자열이 있을 경우 잘못된 요청으로 종료
+		if req.RefreshToken == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "bad_request"})
+			return
+		}
+
 		// Refresh Token 검증 (클레임까지 반환)
 		claims, err := tm.VerifyRefreshToken(req.RefreshToken)
 		if err != nil {
@@ -209,9 +215,23 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			return
 		}
 
-		// Access Token만 재발급해서 반환 (Refresh Token은 그대로 유지 -> Rotation은 추후에 구현)
+		// Refresh Token 재발급 -> Rotation
+		refreshToken, newJTI, err := tm.GenerateRefreshToken(uid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// 새 refresh token의 JTI를 Redis에 저장(이전 refresh token이 다시 사용되면 거부)
+		if err := rs.Save(c.Request.Context(), uid, newJTI); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// Access Token, Refresh Token 재발급해서 반환
 		c.JSON(http.StatusOK, gin.H{
-			"access_token": accessToken,
+			"access_token":  accessToken,
+			"refresh_token": refreshToken,
 		})
 	})
 
