@@ -154,6 +154,12 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			return
 		}
 
+		// Refresh Token JTI 삭제 (로그아웃 시 POST /auth/refresh 요청으로 access 발급으로 새로 접근 가능하게 하면 안되므로)
+		if err := rs.Delete(c.Request.Context(), uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
 		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
 		c.Status(http.StatusNoContent)
 	})
