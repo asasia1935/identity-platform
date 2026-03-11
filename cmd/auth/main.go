@@ -16,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore, locker auth.Locker) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -214,6 +214,19 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			return
 		}
 
+		// 동일 Refresh 요청의 동시 처리(race condition)를 방지하기 위해 JTI 기준 idempotency 락 시도
+		ok, err := locker.TryLock(c.Request.Context(), claims.JTI)
+		// Redis 락 시도 중 오류 발생 시 내부 오류로 처리
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+		// 동일 Refresh 요청이 이미 처리 중이면 중복 요청으로 간주하고 거부
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
 		// Access Token 재발급
 		accessToken, err := tm.GenerateAccessToken(uid)
 		if err != nil {
@@ -272,11 +285,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	rs, err := auth.NewRedisRefreshStore(rdb, cfg.RefreshTokenTTL)
+	rs, err := auth.NewRedisRefreshStore(rdb, cfg.RefreshTokenTTL, cfg.RefreshIdempotencyTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(tm, ss, rs)
+	r := NewRouter(tm, ss, rs, rs)
 	log.Fatal(r.Run(":" + cfg.HTTPPort))
 }

@@ -63,6 +63,15 @@ func (s *fakeRefreshStoreFailOnCall) Delete(ctx context.Context, uid string) err
 	return nil
 }
 
+type fakeLockerFailOnCall struct {
+	t *testing.T
+}
+
+func (s *fakeLockerFailOnCall) TryLock(ctx context.Context, jti string) (bool, error) {
+	s.t.Fatalf("locker should not be called in this test")
+	return false, nil
+}
+
 // TestAuthRouter_BlocksWhenGatewayHeaderMissing -> 보호된 엔드포인트(/me)가 반드시 Gateway를 통해서만 접근되도록 보장하는 테스트
 // 헤더 없이 요청이 들어오면 미들웨어에 의해 403 Forbidden으로 차단됨
 // (해당 테스트는 Auth 서비스가 게이트웨이 경유 계약을 유지하는지 확인하는 회귀 테스트(기능이 퇴보했는지 확인하는 테스트))
@@ -72,8 +81,9 @@ func TestAuthRouter_BlocksWhenGatewayHeaderMissing(t *testing.T) {
 	tm := newTestTokenManager(t)
 	ss := &fakeSessionStoreFailOnCall{t: t}
 	rs := &fakeRefreshStoreFailOnCall{t: t}
+	lo := &fakeLockerFailOnCall{t: t}
 
-	r := NewRouter(tm, ss, rs)
+	r := NewRouter(tm, ss, rs, lo)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	w := httptest.NewRecorder()
@@ -94,8 +104,9 @@ func TestAuthRouter_AllowsGatewayHeaderButRejectsWithoutToken(t *testing.T) {
 	tm := newTestTokenManager(t)
 	ss := &fakeSessionStoreFailOnCall{t: t}
 	rs := &fakeRefreshStoreFailOnCall{t: t}
+	lo := &fakeLockerFailOnCall{t: t}
 
-	r := NewRouter(tm, ss, rs)
+	r := NewRouter(tm, ss, rs, lo)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
 	req.Header.Set("X-Gateway-Verified", "true")

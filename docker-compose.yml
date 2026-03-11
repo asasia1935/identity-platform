@@ -22,6 +22,7 @@ services:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
       - REFRESH_TOKEN_TTL=168h # 7d
+      - REFRESH_IDEMPOTENCY_TTL=5s
       - HTTP_PORT=8080
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=

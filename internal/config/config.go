@@ -10,10 +10,11 @@ import (
 
 type Config struct {
 	// shared
-	Env             string
-	JWTSecret       string
-	AccessTokenTTL  time.Duration
-	RefreshTokenTTL time.Duration
+	Env                   string
+	JWTSecret             string
+	AccessTokenTTL        time.Duration
+	RefreshTokenTTL       time.Duration
+	RefreshIdempotencyTTL time.Duration
 
 	// auth
 	HTTPPort string
@@ -65,6 +66,13 @@ func Load() (Config, error) {
 		return Config{}, errors.New("invalid REFRESH_TOKEN_TTL (e.g. 168h)")
 	}
 	cfg.RefreshTokenTTL = refreshTokenTTL
+
+	refreshIdempotencyTTLStr := getEnv("REFRESH_IDEMPOTENCY_TTL", "5s")
+	refreshIdempotencyTTL, err := time.ParseDuration(refreshIdempotencyTTLStr) // Duration으로 파싱
+	if err != nil {
+		return Config{}, errors.New("invalid REFRESH_IDEMPOTENCY_TTL (e.g. 5s)")
+	}
+	cfg.RefreshIdempotencyTTL = refreshIdempotencyTTL
 
 	// 없을 경우 바로 에러로 종료
 	if cfg.JWTSecret == "" {
