@@ -193,7 +193,19 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 
 		// Refresh Token에서 UID와 JTI 추출
 		uid := claims.Subject
-		// JTI는 Refresh Token의 고유 식별자 (claims에서 추출)
+
+		// 세션이 살아있는지 먼저 확인 (세션이 없으면 로그인 하지 않고 access token에 접근하는 것이므로)
+		exists, err := ss.Exists(c.Request.Context(), uid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// JTI는 Refresh Token의 고유 식별자 (claims에서 추출하여 현재 JTI와 비교)
 
 		// Redis에서 현재 유효한 Refresh Token의 JTI 조회
 		currentJTI, err := rs.Get(c.Request.Context(), uid)
