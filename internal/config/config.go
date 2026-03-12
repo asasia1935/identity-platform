@@ -17,7 +17,11 @@ type Config struct {
 	RefreshIdempotencyTTL time.Duration
 
 	// auth
-	HTTPPort string
+	HTTPPort          string
+	LoginRateLimit    int64
+	LoginRateWindow   time.Duration
+	RefreshRateLimit  int64
+	RefreshRateWindow time.Duration
 
 	// gateway
 	GatewayHTTPPort string
@@ -53,6 +57,11 @@ func Load() (Config, error) {
 		RedisPassword:   getEnv("REDIS_PASSWORD", ""),
 	}
 
+	// 없을 경우 바로 에러로 종료
+	if cfg.JWTSecret == "" {
+		return Config{}, errors.New("JWT_SECRET is required")
+	}
+
 	accessTokenTTLStr := getEnv("ACCESS_TOKEN_TTL", "15m")
 	accessTokenTTL, err := time.ParseDuration(accessTokenTTLStr) // Duration으로 파싱
 	if err != nil {
@@ -74,10 +83,33 @@ func Load() (Config, error) {
 	}
 	cfg.RefreshIdempotencyTTL = refreshIdempotencyTTL
 
-	// 없을 경우 바로 에러로 종료
-	if cfg.JWTSecret == "" {
-		return Config{}, errors.New("JWT_SECRET is required")
+	loginRateLimitStr := getEnv("LOGIN_RATE_LIMIT", "5")
+	loginRateLimit, err := strconv.ParseInt(loginRateLimitStr, 10, 64)
+	if err != nil {
+		return Config{}, errors.New("invalid LOGIN_RATE_LIMIT")
 	}
+	cfg.LoginRateLimit = loginRateLimit
+
+	loginRateWindowStr := getEnv("LOGIN_RATE_WINDOW", "1m")
+	loginRateWindow, err := time.ParseDuration(loginRateWindowStr)
+	if err != nil {
+		return Config{}, errors.New("invalid LOGIN_RATE_WINDOW (e.g. 1m)")
+	}
+	cfg.LoginRateWindow = loginRateWindow
+
+	refreshRateLimitStr := getEnv("LOGIN_RATE_LIMIT", "10")
+	refreshRateLimit, err := strconv.ParseInt(refreshRateLimitStr, 10, 64)
+	if err != nil {
+		return Config{}, errors.New("invalid LOGIN_RATE_LIMIT")
+	}
+	cfg.RefreshRateLimit = refreshRateLimit
+
+	refreshRateWindowStr := getEnv("LOGIN_RATE_WINDOW", "1m")
+	refreshRateWindow, err := time.ParseDuration(refreshRateWindowStr)
+	if err != nil {
+		return Config{}, errors.New("invalid LOGIN_RATE_WINDOW (e.g. 1m)")
+	}
+	cfg.RefreshRateWindow = refreshRateWindow
 
 	dbStr := getEnv("REDIS_DB", "0")
 	db, err := strconv.Atoi(dbStr)

@@ -16,7 +16,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore, locker auth.Locker) *gin.Engine {
+func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore, locker auth.Locker, rl auth.RateLimiter) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(mw.RequestID())
@@ -89,6 +89,23 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "invalid json",
 			})
+			return
+		}
+
+		log.Printf("login rate limit check: ip=%s", c.ClientIP())
+
+		// 로그인 요청에 대한 rate limit
+		allowed, err := rl.AllowLogin(c.Request.Context(), c.ClientIP())
+		if err != nil {
+
+			log.Printf("login rate limit error: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		log.Printf("login rate limit result: allowed=%v", allowed)
+		if !allowed {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too_many_requests"})
 			return
 		}
 
@@ -205,6 +222,17 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			return
 		}
 
+		// 현재 유효한 세션에 대해 Refresh 요청 rate limit
+		allowed, err := rl.AllowRefresh(c.Request.Context(), uid)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+		if !allowed {
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": "too_many_requests"})
+			return
+		}
+
 		// JTI는 Refresh Token의 고유 식별자 (claims에서 추출하여 현재 JTI와 비교)
 
 		// Redis에서 현재 유효한 Refresh Token의 JTI 조회
@@ -302,6 +330,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	r := NewRouter(tm, ss, rs, rs)
+	rl, err := auth.NewRedisRateLimiter(rdb, auth.RateLimitPolicy{
+		LoginLimit:    cfg.LoginRateLimit,
+		LoginWindow:   cfg.LoginRateWindow,
+		RefreshLimit:  cfg.RefreshRateLimit,
+		RefreshWindow: cfg.RefreshRateWindow,
+	})
+
+	r := NewRouter(tm, ss, rs, rs, rl)
 	log.Fatal(r.Run(":" + cfg.HTTPPort))
 }

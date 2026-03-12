@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   redis:
-    image: redis:7-alpine
+    image: redis:7.2-alpine
     container_name: identity-redis
     ports:
       - "6379:6379" # 로컬에서 redis-cli로 확인하고 싶으면 유지, 싫으면 지워도 됨
@@ -24,6 +24,10 @@ services:
       - REFRESH_TOKEN_TTL=168h # 7d
       - REFRESH_IDEMPOTENCY_TTL=5s
       - HTTP_PORT=8080
+      - LOGIN_RATE_LIMIT=1
+      - LOGIN_RATE_WINDOW=1m
+      - REFRESH_RATE_LIMIT=1
+      - REFRESH_RATE_WINDOW=1m
       - REDIS_ADDR=redis:6379
       - REDIS_PASSWORD=
       - REDIS_DB=0
@@ -45,7 +49,7 @@ services:
       dockerfile: Dockerfile
     command: ["./gateway"]
     ports:
-      - "8090:8090"
+      - "18090:8090"
     environment:
       - JWT_SECRET=dev-secret-change-me
       - ACCESS_TOKEN_TTL=15m
