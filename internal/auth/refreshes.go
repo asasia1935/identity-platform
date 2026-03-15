@@ -36,7 +36,7 @@ func NewRedisRefreshStore(rdb *redis.Client, refreshTokenTTL time.Duration, refr
 		return nil, errors.New("REFRESH_TOKEN_TTL must be positive")
 	}
 	if refreshIdempotencyTTL <= 0 {
-		return nil, errors.New("REFRESH_TOKEN_TTL must be positive")
+		return nil, errors.New("REFRESH_IDEMPOTENCY_TTL must be positive")
 	}
 	return &RedisRefreshStore{
 		rdb:                   rdb,
