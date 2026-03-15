@@ -8,6 +8,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const (
+	refreshJTIPrefix  = "rjti:"
+	refreshIdemPrefix = "idem:refresh:"
+)
+
 // Refresh Token의 JTI 관리를 위한 인터페이스 정의
 type RefreshStore interface {
 	Save(ctx context.Context, uid, jti string) error
@@ -47,7 +52,7 @@ func NewRedisRefreshStore(rdb *redis.Client, refreshTokenTTL time.Duration, refr
 
 // refresh JTI 키 함수 (네이밍 고정)
 func (s *RedisRefreshStore) refreshKey(uid string) string {
-	return "refresh:" + uid
+	return refreshJTIPrefix + uid
 }
 
 // 사용자별 현재 유효한 Refresh Token의 JTI를 Redis에 TTL과 함께 저장 (값은 JTI로 저장 -> Get 시 JTI 반환)
@@ -67,7 +72,7 @@ func (s *RedisRefreshStore) Delete(ctx context.Context, uid string) error {
 
 // refresh idempotency lock 키 함수
 func (s *RedisRefreshStore) refreshIdemKey(jti string) string {
-	return "idem:refresh:" + jti
+	return refreshIdemPrefix + jti
 }
 
 // 동일 Refresh 요청의 중복 처리를 방지하기 위해 JTI 기준으로 짧은 TTL의 락 시도 (ex 5초 이내 요청은 Idempotency)

@@ -8,6 +8,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const sessionPrefix = "sess:"
+
 // 세션 스토어 인터페이스 정의 (추후 Redis 외 다른 구현체 추가 가능하도록 인터페이스로 추상화)
 // 라우터/핸들러는 구체적인 Redis 구현체가 아닌 이 인터페이스에 의존하도록 설계
 type SessionStore interface {
@@ -38,7 +40,7 @@ func NewRedisSessionStore(rdb *redis.Client, sessionTTL time.Duration) (*RedisSe
 
 // 세션키 함수 (네이밍 고정)
 func (s *RedisSessionStore) sessionKey(uid string) string {
-	return "sess:" + uid
+	return sessionPrefix + uid
 }
 
 // 세션 생성 API (값은 사용 X -> 존재하면 있는 것으로 확인)
