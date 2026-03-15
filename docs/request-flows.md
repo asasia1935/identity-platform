@@ -140,7 +140,7 @@ sequenceDiagram
     Redis-->>Auth: Session exists / missing
     Auth->>Redis: Check current refresh jti (rjti:{uid})
     Redis-->>Auth: Current jti
-    Auth->>Redis: Try lock (lock:refresh:{uid})
+    Auth->>Redis: Try lock (idem:refresh:{uid})
     Redis-->>Auth: Lock acquired / rejected
     Auth->>Auth: Compare token jti with stored jti
     Auth->>Auth: Issue new access token
