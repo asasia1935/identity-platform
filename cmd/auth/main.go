@@ -54,28 +54,13 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 	})
 
 	// 아래 API는 게이트웨이를 필수로 거쳐야함
-	r.Use(mw.GatewayRequired())
+	gateway := r.Group("/")
+	gateway.Use(mw.GatewayRequired())
 
-	r.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
+	// 로그인과 리프레시는 게이트웨이 진입 여부만 체크하면 됨
 
-		user, _ := c.Get("user")
-
-		ok, err := ss.Exists(c.Request.Context(), user.(string))
-		if err != nil {
-			c.AbortWithStatusJSON(500, gin.H{"error": "internal"})
-			return
-		}
-		if !ok {
-			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"user": user,
-		})
-	})
-
-	r.POST("/auth/login", func(c *gin.Context) {
+	// POST /auth/login -> 로그인 API (엑세스 토큰과 리프레시 토큰 발급)
+	gateway.POST("/auth/login", func(c *gin.Context) {
 		// 로그인 요청 바디(JSON) 구조 정의
 		type LoginRequest struct {
 			Username string `json:"username"`
@@ -152,37 +137,8 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 		})
 	})
 
-	// POST /auth/logout
-	r.POST("/auth/logout", mw.JWTRequired(tm), func(c *gin.Context) {
-		v, ok := c.Get("user")
-		if !ok {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-		uid, ok := v.(string)
-		if !ok || uid == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			return
-		}
-
-		// 세션 삭제
-		if err := ss.Delete(c.Request.Context(), uid); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
-			return
-		}
-
-		// Refresh Token JTI 삭제 (로그아웃 시 POST /auth/refresh 요청으로 access 발급으로 새로 접근 가능하게 하면 안되므로)
-		if err := rs.Delete(c.Request.Context(), uid); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
-			return
-		}
-
-		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
-		c.Status(http.StatusNoContent)
-	})
-
 	// POST /auth/refresh -> Access Token 재발급 API
-	r.POST("/auth/refresh", func(c *gin.Context) {
+	gateway.POST("/auth/refresh", func(c *gin.Context) {
 		// Refresh 요청 바디 구조 정의
 		type RefreshRequest struct {
 			RefreshToken string `json:"refresh_token"`
@@ -292,6 +248,60 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 			"access_token":  accessToken,
 			"refresh_token": refreshToken,
 		})
+	})
+
+	// Auth의 보호 API는 JWT 검증을 직접 하지 않고 게이트웨이 경계에서 직접 수행한 결과를 사용합니다.
+	// 핸들러는 게이트웨이를 거친 것을 확인 후 X-User-ID 헤더에서 해당 유저의 정보를 가져옵니다.
+
+	protected := gateway.Group("/")
+	protected.Use(mw.UserFromGatewayHeader())
+
+	protected.GET("/auth/me", func(c *gin.Context) {
+
+		user, _ := c.Get("user")
+
+		ok, err := ss.Exists(c.Request.Context(), user.(string))
+		if err != nil {
+			c.AbortWithStatusJSON(500, gin.H{"error": "internal"})
+			return
+		}
+		if !ok {
+			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"user": user,
+		})
+	})
+
+	// POST /auth/logout
+	protected.POST("/auth/logout", func(c *gin.Context) {
+		v, ok := c.Get("user")
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+		uid, ok := v.(string)
+		if !ok || uid == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			return
+		}
+
+		// 세션 삭제
+		if err := ss.Delete(c.Request.Context(), uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// Refresh Token JTI 삭제 (로그아웃 시 POST /auth/refresh 요청으로 access 발급으로 새로 접근 가능하게 하면 안되므로)
+		if err := rs.Delete(c.Request.Context(), uid); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal"})
+			return
+		}
+
+		// 로그아웃은 응답 데이터가 없기 때문에 204로 전달
+		c.Status(http.StatusNoContent)
 	})
 
 	return r

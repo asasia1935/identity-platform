@@ -31,9 +31,11 @@ flowchart TD
 ## Components
 
 ### Client
+
 외부 사용자는 직접 내부 인증 서비스에 접근하지 않고, Gateway를 통해 요청을 전달합니다.
 
 ### Gateway
+
 Gateway는 인증 인프라의 **외부 진입점**입니다.
 
 주요 역할:
@@ -41,13 +43,16 @@ Gateway는 인증 인프라의 **외부 진입점**입니다.
 - JWT 인증 검증
 - 공통 인증 실패 처리
 - 내부 서비스로 reverse proxy
-- 인증된 사용자 컨텍스트 전달
+- 인증된 사용자 컨텍스트 전달 (예: X-Gateway-Verified, X-User-ID)
+- 보호 API 요청에 대해서만 JWT 검증 수행 후 헤더 주입
+- 공개 API (login, refresh)는 검증 없이 프록시
 - upstream timeout 및 오류 매핑
 
 Gateway는 여러 서비스에서 반복되는 인증 로직을
 **공통 계층으로 중앙화**하는 역할을 합니다.
 
 ### Auth Service
+
 Auth Service는 실제 인증 기능을 담당하는 서비스입니다.
 
 주요 책임:
@@ -63,6 +68,9 @@ Auth Service는 실제 인증 기능을 담당하는 서비스입니다.
 
 Auth Service는 인증 기능 자체를 담당하며
 다른 서비스들이 사용할 수 있는 **공용 인증 서비스**로 설계되었습니다.
+
+또한 Auth Service는 JWT를 직접 검증하지 않으며,
+Gateway가 전달한 인증 결과를 기반으로 세션 및 인증 상태를 처리합니다.
 
 ### Redis
 
@@ -82,9 +90,11 @@ Redis를 사용하여 stateless JWT 구조를 유지하면서도
 ---
 
 ## Authentication Responsibility
+
 이 구조에서는 **인증(Authentication)** 과 **권한(Authorization)** 의 책임을 분리합니다.
 
 ### Gateway
+
 Gateway는 다음을 담당합니다.
 
 - JWT 유효성 검증
@@ -94,7 +104,12 @@ Gateway는 다음을 담당합니다.
 
 즉 인증(Authentication) 은 Gateway에서 중앙화됩니다.
 
+Gateway는 보호 API 요청에 대해서만 JWT를 검증하며,
+검증 성공 시 사용자 식별 정보를 내부 헤더로 전달합니다.
+공개 API (login, refresh)는 토큰 없이 접근 가능하며 Gateway는 이를 그대로 전달합니다.
+
 ### Service
+
 각 서비스는 Gateway가 전달한 사용자 컨텍스트를 기반으로
 
 - 도메인 권한 검사
@@ -110,7 +125,9 @@ Gateway는 다음을 담당합니다.
 ---
 
 ## Why This Architecture
+
 ### Authentication Centralization
+
 인증 로직은 대부분의 서비스에서 반복되는 공통 기능입니다.
 
 각 서비스가 JWT 검증을 직접 구현하면 다음 문제가 발생합니다.
@@ -123,6 +140,7 @@ Gateway는 다음을 담당합니다.
 서비스는 인증 결과를 기반으로 동작하도록 역할을 분리했습니다.
 
 ### JWT + Redis Hybrid Model
+
 JWT만 사용할 경우 다음 문제가 있습니다.
 
 - logout 이후에도 토큰이 일정 시간 유효
@@ -135,7 +153,9 @@ JWT만 사용할 경우 다음 문제가 있습니다.
 ---
 
 ## Design Principles
+
 ### Clear Responsibility Separation
+
 각 컴포넌트는 명확한 책임을 갖습니다.
 
 Gateway
@@ -150,6 +170,7 @@ Service
 이 구조는 서비스 간 책임을 명확히 분리합니다.
 
 ### Minimal State Control
+
 JWT 기반 인증의 장점을 유지하면서
 필요한 최소 상태만 Redis에 저장합니다.
 
@@ -161,6 +182,7 @@ JWT 기반 인증의 장점을 유지하면서
 - rate limiting counter
 
 ### Production-Oriented Simplicity
+
 이 프로젝트는 복잡한 인증 프레임워크 대신
 운영에서 자주 필요한 기능을 중심으로 설계되었습니다.
 
@@ -171,6 +193,7 @@ JWT 기반 인증의 장점을 유지하면서
 - rate limiting
 
 ### Reliability and Failure Handling
+
 인증 시스템은 실패를 명확히 분류해야 합니다.
 
 예:
@@ -187,7 +210,9 @@ Gateway는 이러한 오류를 명확히 분리하여
 ---
 
 ## Trade-offs
+
 ### Gateway Centralization vs Internal Trust Dependency
+
 인증 검증을 Gateway로 중앙화하면 서비스별 중복 인증 로직을 줄이고
 구조를 단순하게 유지할 수 있습니다.
 
@@ -198,6 +223,7 @@ Gateway는 이러한 오류를 명확히 분리하여
 Gateway 및 내부 네트워크 경계에 더 강하게 의존하는 trade-off를 가집니다.
 
 ### Stateless Simplicity vs Operational Control
+
 JWT only 구조는 단순하지만 운영 제어 기능이 제한됩니다.
 
 Redis를 추가하면 다음 기능을 얻을 수 있습니다.
@@ -212,6 +238,7 @@ Redis를 추가하면 다음 기능을 얻을 수 있습니다.
 ---
 
 ## Future Evolution
+
 현재 구조는 MVP 기반 인증 플랫폼이며
 다음 방향으로 확장할 수 있습니다.
 

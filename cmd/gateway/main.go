@@ -46,18 +46,25 @@ func NewRouter(tm *auth.TokenManager, authProxy http.HandlerFunc) *gin.Engine {
 
 	// API 그룹 생성 (공개/보호 API 구분)
 	api := r.Group("/api")
+	auth := api.Group("/auth")
 
 	// 공개 (로그인/리프레시 같은 Auth 전용 서비스 API는 Auth로 그냥 프록시)
-	api.Any("/auth/*any", func(c *gin.Context) {
+	auth.POST("/login", func(c *gin.Context) {
+		authProxy(c.Writer, c.Request)
+	})
+	auth.POST("/refresh", func(c *gin.Context) {
 		authProxy(c.Writer, c.Request)
 	})
 
-	// 보호: 여기로 들어오는 순간 검증 + 사용자 주입 완료 (/me 같은 )
-	protected := api.Group("/")
+	// 보호: 여기로 들어오는 순간 검증 + 사용자 주입 완료 (/me, 로그아웃 같은)
+	protected := auth.Group("/")
 	protected.Use(gwmw.AuthRequiredAndInjectUser(tm))
 
 	// 이제 핸들러는 "프록시만" 하면 됨 (테스트도 매우 쉬움)
 	protected.GET("/me", func(c *gin.Context) {
+		authProxy(c.Writer, c.Request)
+	})
+	protected.POST("/logout", func(c *gin.Context) {
 		authProxy(c.Writer, c.Request)
 	})
 
