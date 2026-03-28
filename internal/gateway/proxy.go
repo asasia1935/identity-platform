@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/asasia1935/identity-platform/internal/mw"
 )
 
 // NewReverseProxyHandler creates a handler that proxies to targetBaseURL
@@ -35,7 +37,7 @@ func NewReverseProxyHandler(targetBaseURL string, stripPrefix string) (func(http
 		}
 
 		// 경계 강제용 증표 헤더 (업스트림 서비스가 헤더 없으면 API 거부, 보안적 의도보단 경계 강제 및 아키텍처 의도 표현)
-		r.Header.Set("X-Gateway-Verified", "true")
+		r.Header.Set(mw.GatewayVerifiedHeader, "true")
 
 		// forward client info (optional but handy)
 		if r.Header.Get("X-Forwarded-Proto") == "" {

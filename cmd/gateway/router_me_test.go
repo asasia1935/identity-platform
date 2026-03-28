@@ -39,8 +39,8 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 	authRouter := gin.New()
 	authRouter.Use(mw.GatewayRequired())
 	authRouter.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
-		user, _ := c.Get("user")
-		c.JSON(http.StatusOK, gin.H{"user": user})
+		user, _ := c.Get(mw.ContextUserKey)
+		c.JSON(http.StatusOK, gin.H{mw.ContextUserKey: user})
 	})
 
 	// 게이트웨이가 호출할 때 authRouter로 요청이 전달되도록 하는 핸들러 함수
@@ -58,7 +58,7 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 		}
 
 		// GatewayRequired 통과용
-		r2.Header.Set("X-Gateway-Verified", "true")
+		r2.Header.Set(mw.GatewayVerifiedHeader, "true")
 
 		authRouter.ServeHTTP(w, r2)
 	}
@@ -73,7 +73,7 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set(auth.AuthorizationHeader, auth.BearerPrefix+token)
 
 	w := httptest.NewRecorder()
 	gw.ServeHTTP(w, req)
@@ -89,14 +89,14 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 		t.Fatalf("invalid json: %v, body=%s", err, w.Body.String())
 	}
 
-	v, ok := body["user"]
+	v, ok := body[mw.ContextUserKey]
 	if !ok {
-		t.Fatalf("response json missing 'user' key: %v", body)
+		t.Fatalf("response json missing '%s' key: %v", mw.ContextUserKey, body)
 	}
 
 	us, ok := v.(string)
 	if !ok || us == "" {
-		t.Fatalf("user should be non-empty string, got %#v", v)
+		t.Fatalf("%s should be non-empty string, got %#v", mw.ContextUserKey, v)
 	}
 
 	if us != "test" {

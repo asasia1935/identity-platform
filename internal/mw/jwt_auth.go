@@ -15,7 +15,7 @@ func JWTRequired(tm *auth.TokenManager) gin.HandlerFunc {
 		}
 
 		// 이후 핸들러에 쓰도록 저장
-		c.Set("user", uid)
+		c.Set(ContextUserKey, uid)
 
 		c.Next()
 	}

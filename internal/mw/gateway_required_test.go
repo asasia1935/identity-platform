@@ -33,7 +33,7 @@ func TestGatewayRequired_BlocksWhenHeaderMissing(t *testing.T) {
 
 	// 403 Forbidden 예상
 	if w.Code != http.StatusForbidden {
-		t.Fatalf("expected %d when X-Gateway-Verified missing, got %d", http.StatusForbidden, w.Code)
+		t.Fatalf("expected %d when %s missing, got %d", http.StatusForbidden, mw.GatewayVerifiedHeader, w.Code)
 	}
 }
 
@@ -46,13 +46,13 @@ func TestGatewayRequired_AllowsWhenHeaderPresent(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
-	req.Header.Set("X-Gateway-Verified", "true")
+	req.Header.Set(mw.GatewayVerifiedHeader, "true")
 
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
 	// 200 OK 예상
 	if w.Code != http.StatusOK {
-		t.Fatalf("expected %d when X-Gateway-Verified=true, got %d", http.StatusOK, w.Code)
+		t.Fatalf("expected %d when %s=true, got %d", http.StatusOK, mw.GatewayVerifiedHeader, w.Code)
 	}
 }

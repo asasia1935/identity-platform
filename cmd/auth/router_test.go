@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/asasia1935/identity-platform/internal/auth"
+	"github.com/asasia1935/identity-platform/internal/mw"
 )
 
 // fakeSessionStoreFailOnCall -> 세션 스토어가 호출되면 테스트 실패하도록 하는 테스트용 세션 스토어 Fake 구현체 (미들웨어 검증용이기 때문에 세션 스토어가 호출되어서 실패하면 안됨)
@@ -125,7 +126,7 @@ func TestAuthRouter_AllowsGatewayHeaderButRejectsWithoutToken(t *testing.T) {
 	r := NewRouter(tm, ss, rs, lo, rl)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
-	req.Header.Set("X-Gateway-Verified", "true")
+	req.Header.Set(mw.GatewayVerifiedHeader, "true")
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)

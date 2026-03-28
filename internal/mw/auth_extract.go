@@ -9,19 +9,20 @@ import (
 )
 
 func ExtractUserIDFromBearer(c *gin.Context, tm *auth.TokenManager) (string, bool) {
-	authHeader := c.GetHeader("Authorization")
+	authHeader := c.GetHeader(auth.AuthorizationHeader)
 	if authHeader == "" {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return "", false
 	}
 
-	parts := strings.SplitN(authHeader, " ", 2)
-	if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
+	if !strings.HasPrefix(authHeader, auth.BearerPrefix) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return "", false
 	}
 
-	claims, err := tm.VerifyAccessToken(parts[1])
+	rawToken := strings.TrimPrefix(authHeader, auth.BearerPrefix)
+
+	claims, err := tm.VerifyAccessToken(rawToken)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return "", false

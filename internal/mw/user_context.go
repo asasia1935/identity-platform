@@ -8,13 +8,13 @@ import (
 
 func UserFromGatewayHeader() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		uid := c.GetHeader("X-User-ID")
+		uid := c.GetHeader(UserIDHeader)
 		if uid == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing user context"})
 			return
 		}
 
-		c.Set("user", uid)
+		c.Set(ContextUserKey, uid)
 		c.Next()
 	}
 }

@@ -15,7 +15,7 @@ func AuthRequiredAndInjectUser(tm *auth.TokenManager) gin.HandlerFunc {
 		}
 
 		// 업스트림으로 사용자 정보를 헤더에 주입
-		c.Request.Header.Set("X-User-ID", uid)
+		c.Request.Header.Set(appmw.UserIDHeader, uid)
 		c.Next()
 	}
 }

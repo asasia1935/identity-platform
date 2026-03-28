@@ -258,7 +258,7 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 
 	protected.GET("/auth/me", func(c *gin.Context) {
 
-		user, _ := c.Get("user")
+		user, _ := c.Get(mw.ContextUserKey)
 
 		ok, err := ss.Exists(c.Request.Context(), user.(string))
 		if err != nil {
@@ -271,13 +271,13 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 		}
 
 		c.JSON(http.StatusOK, gin.H{
-			"user": user,
+			mw.ContextUserKey: user,
 		})
 	})
 
 	// POST /auth/logout
 	protected.POST("/auth/logout", func(c *gin.Context) {
-		v, ok := c.Get("user")
+		v, ok := c.Get(mw.ContextUserKey)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 			return
