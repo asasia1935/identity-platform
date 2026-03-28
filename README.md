@@ -1,215 +1,214 @@
 # Identity Platform (Go)
 
-플랫폼 관점으로 설계된 인증 및 세션 인프라 시스템
+MSA 환경에서 재사용 가능한 인증/세션 인프라를 설계하고 구현한 Go 기반 플랫폼입니다.
 
 ---
 
 ## 🎯 Objective
 
-단순 로그인 서버가 아니라,
-MSA 환경에서 재사용 가능한 **공용 인증 인프라**를 설계/구현하는 것이 목표입니다.
+본 프로젝트는 단순 로그인 서버가 아니라,
+여러 서비스에서 공통으로 사용할 수 있는 **인증/세션 인프라 플랫폼**을 구축하는 것을 목표로 합니다.
 
-이 프로젝트는 다음을 중점적으로 다룹니다:
+다음과 같은 문제를 해결하고자 합니다:
 
-- Gateway 강제 경계 분리
-- 인증 실패 정책 통일
-- Upstream timeout 및 장애 분류
-- Redis 기반 세션 관리
-- Refresh Rotation / Idempotency / Rate Limiting 으로 확장 가능한 구조 설계
+- JWT 기반 인증에서 Logout 즉시 반영이 어려운 문제
+- Refresh Token 재사용(replay) 및 중복 요청 문제
+- 서비스별 인증 로직 중복 및 정책 불일치 문제
+- 장애 상황에서의 일관되지 않은 인증 처리
 
 ---
 
 ## 🏗  Architecture
 
-Client  
-  ↓  
-Gateway (Reverse Proxy)  
-  - StripPrefix  
-  - X-Gateway-Verified 강제  
-  - Upstream Timeout 설정  
-  - 502 / 504 Error Mapping  
-
-  ↓  
-Auth Service  
-  - JWT Access 발급  
-  - Middleware 인증 처리  
-  - Redis 세션 생성 / 검증 / 삭제  
-  - /me 보호 API  
-
-  ↓  
-Redis  
-  - Session TTL 관리 
-  - Session 존재 여부 검증  
-
----
-
-## 🏗 Architecture Diagram
-
 ```mermaid
 flowchart TD
-
-subgraph External
-    Client
-end
-
-subgraph Docker_Network
-    Gateway
-    Auth
-    Redis
-end
-
-Client -->|HTTP| Gateway
-Gateway -->|Internal Network| Auth
-Auth -->|Session Create / Exists / Delete| Redis
-
-Auth -->|JWT issuance| Gateway
-Gateway -->|Response| Client
-
-Gateway -->|502 / 504| Client
+    Client --> Gateway
+    Gateway --> Auth
+    Auth --> Redis
 ```
 
 ---
 
-## 🔐 Core Features (Current Scope)
+## 🔑 Key Design
 
-### 1️⃣ JWT Authentication
-- Typed Claims 구조체 사용
-- Access Token 발급
-- Middleware 기반 인증 검증
-- 에러 정책 통일 (unauthorized)
+### 1. Authentication Centralization (Gateway)
 
-### 2️⃣ Gateway Boundary Enforcement
-- Auth 서버 직접 접근 차단.
-- Gateway를 반드시 통과하도록 헤더 기반 검증 적용.
+인증(Authentication)은 Gateway에서 수행됩니다.
 
-→ MSA 환경에서 공용 인증 인프라 구조를 모사
+- JWT Access Token 검증
+- 인증 실패 처리
+- 사용자 식별자 추출 및 전달 (X-User-ID)
+- 인증 경계 강제 (X-Gateway-Verified)
 
-### 3️⃣ Redis-backed Session Management
-- Redis 기반 세션 저장소 구현
-- 로그인 시 세션 생성
-- 보호 API 접근 시 세션 존재 여부 검증
-- 로그아웃 시 세션 삭제
-- TTL 기반 자동 만료
-
-→ JWT만 검증하는 것이 아니라, 서버 측 세션 상태까지 확인하는 구조
-
-### 3️⃣ Reliability & Failure Handling
-- Upstream Dial / Response Timeout 설정
-- Connection 실패 → 502 Bad Gateway
-- Timeout 발생 → 504 Gateway Timeout
-- 인증 실패 응답 통일
-
-→ 장애 상황에서도 예측 가능한 동작 보장
+서비스는 JWT를 직접 검증하지 않고, Gateway가 전달한 사용자 컨텍스트를 신뢰합니다.
 
 ---
 
-## 🧠 Design Principles
+### 2. JWT + Redis Hybrid Model
 
-### ✔ Platform First
-비즈니스 로직보다 “인프라적 사고”를 우선.
+JWT의 Stateless 특성과 Redis의 상태 관리 기능을 결합한 구조를 사용합니다.
 
-### ✔ Failure is Expected
-Timeout, Upstream 실패를 정상 흐름으로 간주하고 명시적 처리.
+- JWT: 인증 토큰
+- Redis: 세션 상태 관리
 
-### ✔ Explicit Boundary
-서비스 간 경계를 코드 레벨 + 네트워크 레벨에서 강제.
+이를 통해 다음을 가능하게 합니다:
 
-### ✔ Stateful Validation over Stateless JWT Only
-Access Token만 신뢰하지 않고,
-Redis 세션 상태를 함께 확인하여 서버 측 무효화(logout) 가능성을 확보.
-
-### ✔ Extensible Structure
-Redis 세션, Refresh Rotation, Idempotency, Async Hook을
-추가해도 구조 변경이 최소화되도록 설계.
+- Logout 즉시 반영
+- 세션 기반 접근 제어
+- Refresh Token 상태 관리
 
 ---
 
-## 🗂 Project Structure
+### 3. Session-Based Access Control
+
+Access Token이 유효하더라도,
+Redis 세션이 존재하지 않으면 요청을 거부합니다.
 
 ```
-identity-platform/
-├── cmd/
-│   ├── auth/        # auth service entrypoint
-│   └── gateway/     # gateway service entrypoint
-│
-└── internal/
-    ├── auth/        # token issuance & domain logic
-    │   ├── tokens.go
-    │   ├── errors.go
-    │   └── session_store.go
-    │
-    ├── config/
-    │   └── config.go
-    │
-    ├── gateway/
-    │   ├── proxy.go
-    │   └── mw/
-    │       └── inject_user.go
-    │
-    ├── mw/
-    │   ├── jwt_auth.go
-    │   └── gateway_required.go
-    │
-    └── store/
-        └── redis.go
+Access Token valid + Session 없음 → 401 Unauthorized
 ```
 
-서비스 진입점(cmd)과 내부 로직(internal)을 분리하고, JWT 로직과 세션 저장 로직을 분리하여
-확장 가능성과 테스트 용이성을 고려.
+---
+
+### 4. Refresh Token Control
+
+Refresh Token은 다음 조건을 만족해야 합니다:
+
+- 서명 검증 통과
+- 만료되지 않음
+- Redis에 저장된 JTI와 일치
+- 세션 존재
+
+또한, Refresh Token은 1회 사용 원칙(Rotation)을 따릅니다.
 
 ---
 
-## ▶️ How to Run
-```Bash
-docker compose up --build
-```
+## 🔄 Request Flow
 
-Docker Compose는 다음 서비스를 함께 실행합니다:
+### Login
 
-- Gateway
-- Auth
-- Redis
-
-외부 공개 포트는 Gateway만 사용하며, Auth는 내부 네트워크를 통해서만 접근합니다.
+1. 사용자 인증
+2. Access Token 발급
+3. Refresh Token 발급
+4. Redis 세션 생성
 
 ---
 
-## ✅ Testing
-```Bash
-go test ./...
-```
+### Protected API (/me)
 
-현재 테스트는 다음을 포함합니다:
-
-- Gateway 헤더가 없는 요청 차단
-- Gateway 헤더는 있지만 토큰이 없는 요청 차단
-- 세션 저장소 주입 구조에 맞춘 라우터 테스트 유지
+1. Gateway에서 JWT 검증
+2. X-User-ID 헤더 주입
+3. Auth 서비스에서 Redis 세션 확인
+4. 응답 반환
 
 ---
 
-## 🚧 Next Phase (Redis Integration - Identity MVP v1)
+### Logout
 
-- Refresh Token 발급
-- /auth/refresh API 추가
-- Refresh Token Rotation (현재 유효 refresh jti 1개 유지)
-- Refresh Idempotency 처리 (SET NX + TTL 기반 중복 요청 방지)
-- Basic Rate Limiting (INCR + TTL 기반 고정 윈도우)
+1. Redis 세션 삭제
+2. 이후 모든 요청은 세션 없음으로 거부됨
 
 ---
 
-## 🔭 Future Enhancements (Post-MVP)
+### Refresh
 
-- Structured Logging (traceID 포함)
-- Async Audit Hook 연동
-- Observability 확장 (metrics / error classification)
-- Advanced Security Policies (reuse detection, multi-device session 등)
+1. Refresh Token 검증
+2. Redis 상태 확인 (JTI + Session)
+3. 새로운 Access Token 발급
+4. Refresh Rotation 수행
 
 ---
 
-## 🛠 Tech Stack
+## 📚 Documentation
 
-- Go
-- Gin
-- Docker / Docker Compose
-- Reverse Proxy (net/http/httputil)
-- Redis
+- Architecture: docs/architecture.md
+- Request Flows: docs/request-flows.md
+- Redis Design: docs/redis-design.md
+- Failure Scenarios: docs/failure-scenarios.md
+- ADR: docs/adr/
+- Policy:
+  - docs/policy/auth-boundary.md
+  - docs/policy/session-policy.md
+  - docs/policy/refresh-policy.md
+  - docs/policy/error-policy.md
+
+---
+
+## ⚖️ Trade-offs
+
+### Gateway Centralization
+
+장점:
+
+- 인증 로직 중앙화
+- 중복 제거
+
+단점:
+
+- Gateway 의존성 증가
+- 내부 신뢰 모델 필요
+
+---
+
+### JWT + Redis
+
+장점:
+
+- Logout 즉시 반영
+- 세션 제어 가능
+
+단점:
+
+- Redis 의존성 추가
+- 상태 관리 필요
+
+---
+
+## 🧪 Verification
+
+다음 시나리오를 통해 검증하였습니다:
+
+- Login → 200
+- Protected API → 200
+- Logout → 204
+- Logout 이후 Protected API → 401
+- Refresh → 정상 발급
+- Logout 이후 Refresh → 401
+- Gateway 우회 요청 차단
+
+---
+
+## 📊 Result
+
+본 구조를 통해 다음을 달성하였습니다:
+
+- 인증 로직을 Gateway로 중앙화하여 서비스 간 중복 제거
+- Redis 기반 세션 관리로 Logout 즉시 반영 가능
+- Refresh Token 재사용 방지 및 안정적인 재발급 흐름 구현
+- 인증 실패 및 장애 상황에 대한 일관된 정책 수립
+
+또한, 다음과 같은 시나리오를 검증하였습니다:
+
+- Login → 200
+- Protected API → 200
+- Logout → 204
+- Logout 이후 요청 → 401
+- Refresh 정상 동작 및 세션 기반 차단 확인
+
+---
+
+## 🚀 Future Work
+
+- Token Revocation / Global Logout
+- RBAC (Authorization)
+- Observability (Tracing / Metrics)
+- Kafka 기반 Event-Driven 확장
+- mTLS / Service Mesh 기반 내부 통신 강화
+
+---
+
+## 📌 Summary
+
+본 프로젝트는 인증을 Gateway로 중앙화하고,
+Redis 기반 세션을 통해 JWT의 한계를 보완한
+**운영 관점의 인증 플랫폼 설계 및 구현 사례**입니다.
