@@ -192,6 +192,39 @@ HTTP 401 Unauthorized
 
 ---
 
+## Logout Cleanup Partial Failure
+
+### Scenario
+
+Logout 요청에서 Redis Session 삭제는 성공했지만, 현재 Refresh Token JTI 삭제가 실패하는 상황입니다.
+
+예:
+
+```
+DEL sess:{uid}  -> success
+DEL rjti:{uid}  -> error
+```
+
+### Behavior
+
+이 경우 client에는 logout 성공으로 응답합니다.
+
+```
+HTTP 204 No Content
+```
+
+### Rationale
+
+Redis Session은 active login marker입니다. Session 삭제가 성공하면 해당 사용자는 더 이상 로그인 상태로 인정되지 않습니다.
+
+Refresh 요청은 Refresh Token 검증뿐 아니라 Session 존재 여부도 함께 확인하므로, Refresh JTI가 남아 있더라도 Session이 없으면 Access Token 재발급은 실패합니다.
+
+따라서 Refresh JTI 삭제 실패는 client-facing logout 실패가 아니라 cleanup failure로 취급합니다. 해당 실패는 서버 로그에 남기고, 추후 cleanup/retry 대상으로 관리합니다.
+
+Session 삭제 자체가 실패한 경우에는 로그인 상태 종료를 보장할 수 없으므로 500 Internal Server Error를 반환합니다.
+
+---
+
 ## Refresh Token Validation Failure
 
 ### Scenario

@@ -102,6 +102,7 @@ sequenceDiagram
     Gateway->>Gateway: Validate JWT
     Gateway->>Auth: Forward authenticated request with user context
     Auth->>Redis: Delete session (sess:{uid})
+    Auth->>Redis: Delete refresh jti (rjti:{uid})
     Auth-->>Gateway: 204 No Content
     Gateway-->>Client: 204 No Content
 ```
@@ -112,12 +113,17 @@ sequenceDiagram
 2. Gateway가 JWT를 검증합니다.
 3. Gateway는 인증된 사용자 컨텍스트를 Auth Service로 전달합니다.
 4. Auth Service는 Redis에서 해당 사용자의 session을 삭제합니다.
-5. 이후 동일 세션 기준 보호 API 요청은 더 이상 허용되지 않습니다.
+5. Auth Service는 현재 Refresh Token JTI 삭제를 시도합니다.
+6. session 삭제가 성공하면 logout은 성공으로 간주하며, refresh JTI 삭제가 실패해도 client에는 204 No Content를 반환합니다.
+7. refresh JTI 삭제 실패는 로그로 남기고 추후 cleanup/retry 대상으로 관리합니다.
+8. 이후 동일 세션 기준 보호 API 요청과 refresh 요청은 더 이상 허용되지 않습니다.
 
 ### Result
 
 - Redis session 삭제
+- Redis refresh jti 삭제 시도
 - 이후 보호 API 접근 차단
+- 이후 refresh 요청 차단
 
 ---
 

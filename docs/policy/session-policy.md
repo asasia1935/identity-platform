@@ -56,7 +56,14 @@ Session은 다음 경우 무효화됩니다.
 - TTL 만료 시
 - 관리자 또는 운영 도구에 의한 강제 삭제 시 (추후 확장)
 
-Logout 시 Auth Service는 Redis Session과 현재 Refresh Token JTI를 삭제합니다. 따라서 logout 이후에는 남아 있는 Access Token 또는 Refresh Token만으로 인증 상태를 계속 유지할 수 없습니다.
+Logout의 핵심 성공 기준은 Redis Session 삭제 성공 여부입니다.
+Redis Session은 active login marker이므로, Session 삭제가 성공하면 해당 사용자는 더 이상 로그인 상태로 인정되지 않습니다.
+
+Auth Service는 logout 처리 중 현재 Refresh Token JTI 삭제도 시도합니다.
+다만 Session 삭제가 이미 성공한 뒤 Refresh JTI 삭제가 실패하더라도 client에는 `204 No Content`를 반환합니다.
+이 경우 사용자는 이미 로그아웃 상태이며, Refresh JTI 삭제 실패는 로그로 남기고 추후 cleanup/retry 대상으로 관리합니다.
+
+Session 삭제 자체가 실패하면 로그인 상태 종료를 보장할 수 없으므로 `500 Internal Server Error`를 반환합니다.
 
 ---
 

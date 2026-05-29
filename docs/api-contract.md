@@ -270,12 +270,14 @@ Success response:
 HTTP/1.1 204 No Content
 ```
 
-Logout 성공 시 Auth Service는 다음 작업을 수행합니다.
+Logout 처리 시 Auth Service는 다음 작업을 수행합니다.
 
 - Redis session 삭제
-- Redis refresh JTI 삭제
+- Redis refresh JTI 삭제 시도
 
-현재 코드 기준 session 삭제 후 refresh JTI 삭제가 실패하면 `500 Internal Server Error`를 반환합니다. 다만 session 삭제가 이미 성공한 경우 logout을 성공으로 볼지, refresh JTI 삭제 실패까지 엄격하게 실패로 볼지는 정책 확정이 필요합니다.
+Logout의 핵심 성공 기준은 Redis session 삭제 성공 여부입니다. Session 삭제가 성공하면 사용자는 더 이상 active login 상태로 인정되지 않으므로, refresh JTI 삭제가 실패하더라도 client에는 `204 No Content`를 반환합니다.
+
+Refresh JTI 삭제 실패는 로그로 남기고 추후 cleanup/retry 대상으로 관리합니다. Session 삭제 자체가 실패하면 로그인 상태 종료를 보장할 수 없으므로 `500 Internal Server Error`를 반환합니다.
 
 Error cases:
 
@@ -284,7 +286,7 @@ Error cases:
 | access token 누락, 형식 오류, 검증 실패            | `401 Unauthorized`          | `{"error":"unauthorized"}`         |
 | Auth 내부 요청에서 `X-User-ID` 없음                | `401 Unauthorized`          | `{"error":"missing user context"}` |
 | session 삭제 Redis error                           | `500 Internal Server Error` | `{"error":"internal"}`             |
-| refresh JTI 삭제 Redis error                       | `500 Internal Server Error` | `{"error":"internal"}`             |
+| refresh JTI 삭제 Redis error                       | `204 No Content`            | body 없음. 서버 로그에 기록        |
 | Auth internal path를 Gateway header 없이 직접 호출 | `403 Forbidden`             | `{"error":"gateway required"}`     |
 
 ### 5.4 Me
@@ -380,7 +382,6 @@ Token 응답 필드는 snake_case로 통일합니다.
 
 - Redis 장애가 Auth 내부에서 즉시 error로 반환되면 `500`이지만, Gateway timeout까지 지연되면 client는 `504`를 받을 수 있습니다. 운영 timeout 기준과 Redis client timeout 정책은 추후 보강이 필요합니다.
 - Concurrent refresh에서 idempotency lock 획득 실패를 현재 코드는 `401 Unauthorized`로 처리합니다. 이 status가 최종 정책인지 확인이 필요합니다.
-- Logout 중 session 삭제 성공 후 refresh JTI 삭제 실패를 `500`으로 유지할지, idempotent logout으로 간주해 `204`로 볼지 확인이 필요합니다.
 
 ## 8. Gateway / Downstream Service Contract
 
@@ -452,8 +453,6 @@ Redis Session은 active login marker입니다. Refresh Token과 Redis Session은
 
 추후 확인/보강할 항목은 다음과 같습니다.
 
-- Logout 부분 실패 정책 확정
-  - session 삭제 성공 후 refresh JTI 삭제 실패 시 `204`로 볼지, 현재처럼 `500`으로 볼지 결정이 필요합니다.
 - WalkQuest 연동 후 downstream contract 테스트 추가
   - Gateway header 주입, direct access 차단, status code 계약을 통합 테스트로 확인해야 합니다.
 - README와 API contract 문서 간 링크 정리
