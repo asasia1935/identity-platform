@@ -438,11 +438,20 @@ curl http://localhost:18090/api/auth/me \
 
 ## 10. 남은 확인 사항
 
+Session TTL과 Refresh TTL 정책은 다음과 같이 확정되었습니다.
+
+```env
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=168h
+SESSION_TTL=168h
+```
+
+Redis Session은 active login marker입니다. Refresh Token과 Redis Session은 동일한 기본 TTL을 사용하며, 사용자는 최대 7일 동안 재로그인 없이 Refresh Token을 통해 Access Token을 재발급받을 수 있습니다.
+
+단, Refresh Token만으로 Access Token을 재발급하지는 않습니다. Refresh 요청은 Redis Session 존재 여부도 함께 확인하므로, logout 또는 session 삭제 이후에는 Refresh Token이 남아 있어도 Access Token 재발급이 실패합니다.
+
 추후 확인/보강할 항목은 다음과 같습니다.
 
-- Session TTL과 refresh TTL 정책 확정
-  - 현재 `.env.example` 기준 `SESSION_TTL=15m`, `REFRESH_TOKEN_TTL=168h`입니다.
-  - Refresh 요청은 session 존재 여부를 확인하므로 session TTL이 짧으면 refresh token이 남아 있어도 refresh가 실패할 수 있습니다.
 - Logout 부분 실패 정책 확정
   - session 삭제 성공 후 refresh JTI 삭제 실패 시 `204`로 볼지, 현재처럼 `500`으로 볼지 결정이 필요합니다.
 - WalkQuest 연동 후 downstream contract 테스트 추가

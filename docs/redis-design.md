@@ -24,6 +24,26 @@ Redis는 다음 목적을 위해 사용됩니다:
 
 ---
 
+# Session / Refresh TTL Policy
+
+현재 코드 기준 Redis key는 다음 이름을 사용합니다.
+
+- `sess:{uid}`: 로그인 상태를 나타내는 active login marker입니다.
+- `rjti:{uid}`: 현재 유효한 Refresh Token의 JTI를 저장합니다.
+
+기본 정책에서는 Refresh Token이 유효한 기간과 서버가 로그인 상태로 인정하는 기간을 일치시키기 위해 두 key가 동일한 TTL을 사용합니다.
+
+```env
+REFRESH_TOKEN_TTL=168h
+SESSION_TTL=168h
+```
+
+`sess:{uid}`는 일반적인 서버 세션 데이터가 아니라 로그인 상태를 서버 측에서 제어하기 위한 marker입니다. `rjti:{uid}`는 현재 사용할 수 있는 Refresh Token의 JTI를 저장하여 refresh token rotation과 replay 방어에 사용합니다.
+
+Refresh 요청은 Refresh Token 검증, `rjti:{uid}` 확인, `sess:{uid}` 확인을 모두 통과해야 성공합니다. 따라서 Session이 만료되거나 삭제되면 Refresh Token이 아직 만료되지 않았더라도 Access Token 재발급은 실패합니다.
+
+---
+
 # Session Key
 
 ```
