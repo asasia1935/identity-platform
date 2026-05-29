@@ -38,7 +38,7 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 	// Auth 라우터(/me + GatewayRequired + JWTRequired 만으로 최소 설정)
 	authRouter := gin.New()
 	authRouter.Use(mw.GatewayRequired())
-	authRouter.GET("/me", mw.JWTRequired(tm), func(c *gin.Context) {
+	authRouter.GET("/auth/me", mw.JWTRequired(tm), func(c *gin.Context) {
 		user, _ := c.Get(mw.ContextUserKey)
 		c.JSON(http.StatusOK, gin.H{mw.ContextUserKey: user})
 	})
@@ -72,7 +72,7 @@ func TestGateway_ToAuth_Me_Returns200AndUserKey(t *testing.T) {
 		t.Fatalf("failed to generate token: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/api/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
 	req.Header.Set(auth.AuthorizationHeader, auth.BearerPrefix+token)
 
 	w := httptest.NewRecorder()

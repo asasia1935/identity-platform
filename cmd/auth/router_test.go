@@ -101,7 +101,7 @@ func TestAuthRouter_BlocksWhenGatewayHeaderMissing(t *testing.T) {
 
 	r := NewRouter(tm, ss, rs, lo, rl)
 
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	w := httptest.NewRecorder()
 
 	r.ServeHTTP(w, req)
@@ -125,7 +125,7 @@ func TestAuthRouter_AllowsGatewayHeaderButRejectsWithoutToken(t *testing.T) {
 
 	r := NewRouter(tm, ss, rs, lo, rl)
 
-	req := httptest.NewRequest(http.MethodGet, "/me", nil)
+	req := httptest.NewRequest(http.MethodGet, "/auth/me", nil)
 	req.Header.Set(mw.GatewayVerifiedHeader, "true")
 	w := httptest.NewRecorder()
 
