@@ -33,6 +33,8 @@ Refresh Token은 1회 사용 원칙을 따릅니다.
 ## Idempotency
 
 중복 요청 방지를 위해 JTI 기반 Lock을 사용할 수 있습니다.
+현재 코드 기준 lock key는 `idem:refresh:{jti}` 형태입니다.
+이는 사용자 전체 단위가 아니라 동일 refresh token으로 들어오는 중복/동시 요청을 제어하기 위한 정책입니다.
 
 ---
 

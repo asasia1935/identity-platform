@@ -140,7 +140,7 @@ sequenceDiagram
     Redis-->>Auth: Session exists / missing
     Auth->>Redis: Check current refresh jti (rjti:{uid})
     Redis-->>Auth: Current jti
-    Auth->>Redis: Try lock (idem:refresh:{uid})
+    Auth->>Redis: Try lock (idem:refresh:{jti})
     Redis-->>Auth: Lock acquired / rejected
     Auth->>Auth: Compare token jti with stored jti
     Auth->>Auth: Issue new access token
@@ -158,11 +158,12 @@ sequenceDiagram
 4. Auth Service는 Redis에서 세션 존재 여부를 확인합니다.
 5. Redis에 저장된 현재 유효 refresh jti를 조회합니다.
 6. idempotency 처리를 위해 refresh lock 획득을 시도합니다.
-7. lock 획득에 성공한 요청만 refresh를 진행합니다.
-8. 요청에 포함된 Refresh Token의 jti가 Redis에 저장된 jti와 일치하는지 확인합니다.
-9. 일치하면 새로운 Access Token과 Refresh Token을 발급합니다.
-10. Redis의 refresh jti를 새 값으로 갱신합니다.
-11. 새 토큰을 응답으로 반환합니다.
+7. lock은 refresh token의 jti 기준(`idem:refresh:{jti}`)으로 획득하며, 동일 refresh token으로 들어오는 중복/동시 요청을 제어합니다.
+8. lock 획득에 성공한 요청만 refresh를 진행합니다.
+9. 요청에 포함된 Refresh Token의 jti가 Redis에 저장된 jti와 일치하는지 확인합니다.
+10. 일치하면 새로운 Access Token과 Refresh Token을 발급합니다.
+11. Redis의 refresh jti를 새 값으로 갱신합니다.
+12. 새 토큰을 응답으로 반환합니다.
 
 ### Result
 

@@ -26,8 +26,11 @@ Redis 기반 idempotency lock을 도입합니다.
 Refresh 요청 시:
 
 ```
-SETNX idem:refresh:{uid}
+SETNX idem:refresh:{jti}
 ```
+
+lock key는 refresh token의 JTI를 기준으로 합니다.
+이는 사용자 전체 단위가 아니라 동일 refresh token으로 들어오는 중복/동시 요청을 제어하기 위한 결정입니다.
 
 락 획득에 실패하면 동일 요청으로 판단하고 거부합니다.
 

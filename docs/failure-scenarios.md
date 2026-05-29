@@ -287,8 +287,11 @@ refresh replay 공격을 방지합니다.
 Redis lock 사용
 
 ```
-SET idem:refresh:{uid} 1 NX EX <ttl>
+SET idem:refresh:{jti} 1 NX EX <ttl>
 ```
+
+lock key는 refresh token의 JTI를 기준으로 합니다.
+이는 사용자 전체 refresh 요청을 차단하기 위한 것이 아니라, 동일 refresh token으로 들어오는 중복/동시 요청을 제어하기 위한 정책입니다.
 
 ### Behavior
 

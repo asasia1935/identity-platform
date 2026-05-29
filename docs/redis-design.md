@@ -18,7 +18,7 @@ Redis는 다음 목적을 위해 사용됩니다:
 |----|----|
 | `sess:{uid}` | 사용자 세션 존재 여부 확인 |
 | `refresh:{uid}` | 현재 유효한 refresh token JTI |
-| `idem:refresh:{uid}` | refresh 요청 idempotency lock |
+| `idem:refresh:{jti}` | refresh token JTI 기준 idempotency lock |
 | `rate:login:{ip}` | 로그인 rate limit |
 | `rate:refresh:{uid}` | refresh rate limit |
 
@@ -129,13 +129,13 @@ SET rjti:{uid} {new_jti} EX <refresh_ttl>
 # Refresh Idempotency Lock
 
 ```
-idem:refresh:{uid}
+idem:refresh:{jti}
 ```
 
 Example
 
 ```
-idem:refresh:123
+idem:refresh:01HZYEXAMPLEJTI
 ```
 
 ## Purpose
@@ -156,8 +156,11 @@ idem:refresh:123
 Redis `SET NX`를 사용합니다.
 
 ```
-SET idem:refresh:{uid} 1 NX EX <short_ttl>
+SET idem:refresh:{jti} 1 NX EX <short_ttl>
 ```
+
+이 key는 사용자 ID가 아니라 refresh token의 JTI를 기준으로 합니다.
+목적은 사용자 전체 refresh 요청을 막는 것이 아니라, 동일 refresh token으로 들어오는 중복/동시 요청을 제어하는 것입니다.
 
 동작
 

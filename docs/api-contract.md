@@ -221,9 +221,8 @@ Session이 없으면 refresh는 실패할 수 있습니다. 이는 현재 sessio
 
 Idempotency/retry 방지 정책:
 
-- 현재 코드 기준 lock key는 refresh token의 `JTI`를 사용합니다.
-- 기존 일부 문서에는 `idem:refresh:{uid}` 형태로 설명된 부분이 있습니다.
-- 코드 기준은 `idem:refresh:{jti}`에 가깝습니다. 문서 간 표현 정리는 추후 보강이 필요합니다.
+- 현재 코드 기준 lock key는 refresh token의 `JTI`를 사용하며, key 형태는 `idem:refresh:{jti}`입니다.
+- 이 lock은 사용자 전체 단위가 아니라 동일 refresh token으로 들어오는 중복/동시 요청을 제어하기 위한 목적입니다.
 
 Error cases:
 
@@ -446,9 +445,6 @@ curl http://localhost:18090/api/auth/me \
   - Refresh 요청은 session 존재 여부를 확인하므로 session TTL이 짧으면 refresh token이 남아 있어도 refresh가 실패할 수 있습니다.
 - Logout 부분 실패 정책 확정
   - session 삭제 성공 후 refresh JTI 삭제 실패 시 `204`로 볼지, 현재처럼 `500`으로 볼지 결정이 필요합니다.
-- Refresh idempotency key 문서 정리
-  - 현재 코드 기준 lock은 JTI를 사용합니다.
-  - 기존 일부 문서는 uid 기준으로 설명하고 있어 표현 정리가 필요합니다.
 - WalkQuest 연동 후 downstream contract 테스트 추가
   - Gateway header 주입, direct access 차단, status code 계약을 통합 테스트로 확인해야 합니다.
 - README와 API contract 문서 간 링크 정리
