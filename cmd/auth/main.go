@@ -132,8 +132,8 @@ func NewRouter(tm *auth.TokenManager, ss auth.SessionStore, rs auth.RefreshStore
 
 		// Access/Refresh Token 모두 반환
 		c.JSON(http.StatusOK, gin.H{
-			"accessToken":  access,
-			"refreshToken": refresh,
+			"access_token":  access,
+			"refresh_token": refresh,
 		})
 	})
 
