@@ -18,7 +18,7 @@ MSA 환경에서 재사용 가능한 인증/세션 인프라를 설계하고 구
 
 ---
 
-## 🏗  Architecture
+## 🏗 Architecture
 
 ```mermaid
 flowchart TD
@@ -121,6 +121,7 @@ Refresh Token은 다음 조건을 만족해야 합니다:
 
 ## 📚 Documentation
 
+- API Contract: docs/api-contract.md
 - Architecture: docs/architecture.md
 - Request Flows: docs/request-flows.md
 - Redis Design: docs/redis-design.md
