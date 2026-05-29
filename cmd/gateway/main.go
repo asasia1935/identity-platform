@@ -80,7 +80,7 @@ func main() {
 	}
 
 	// 게이트웨이가 해당 정책으로 검증할 수 있도록 매니저 생성
-	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	if err != nil {
 		log.Fatal(err)
 	}

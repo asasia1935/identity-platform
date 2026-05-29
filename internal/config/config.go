@@ -97,17 +97,17 @@ func Load() (Config, error) {
 	}
 	cfg.LoginRateWindow = loginRateWindow
 
-	refreshRateLimitStr := getEnv("LOGIN_RATE_LIMIT", "10")
+	refreshRateLimitStr := getEnv("REFRESH_RATE_LIMIT", "10")
 	refreshRateLimit, err := strconv.ParseInt(refreshRateLimitStr, 10, 64)
 	if err != nil {
-		return Config{}, errors.New("invalid LOGIN_RATE_LIMIT")
+		return Config{}, errors.New("invalid REFRESH_RATE_LIMIT")
 	}
 	cfg.RefreshRateLimit = refreshRateLimit
 
-	refreshRateWindowStr := getEnv("LOGIN_RATE_WINDOW", "1m")
+	refreshRateWindowStr := getEnv("REFRESH_RATE_WINDOW", "1m")
 	refreshRateWindow, err := time.ParseDuration(refreshRateWindowStr)
 	if err != nil {
-		return Config{}, errors.New("invalid LOGIN_RATE_WINDOW (e.g. 1m)")
+		return Config{}, errors.New("invalid REFRESH_RATE_WINDOW (e.g. 1m)")
 	}
 	cfg.RefreshRateWindow = refreshRateWindow
 

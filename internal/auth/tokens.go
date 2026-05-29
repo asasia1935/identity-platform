@@ -9,20 +9,25 @@ import (
 )
 
 type TokenManager struct {
-	secret    []byte
-	accessTTL time.Duration
+	secret     []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
 }
 
-func NewTokenManager(jwtSecret string, accessTTL time.Duration) (*TokenManager, error) {
+func NewTokenManager(jwtSecret string, accessTTL time.Duration, refreshTTL time.Duration) (*TokenManager, error) {
 	if jwtSecret == "" {
 		return nil, errors.New("JWT_SECRET is required")
 	}
 	if accessTTL <= 0 {
 		return nil, errors.New("ACCESS_TOKEN_TTL must be positive")
 	}
+	if refreshTTL <= 0 {
+		return nil, errors.New("REFRESH_TOKEN_TTL must be positive")
+	}
 	return &TokenManager{
-		secret:    []byte(jwtSecret),
-		accessTTL: accessTTL,
+		secret:     []byte(jwtSecret),
+		accessTTL:  accessTTL,
+		refreshTTL: refreshTTL,
 	}, nil
 }
 
@@ -98,7 +103,7 @@ func (m *TokenManager) GenerateRefreshToken(uid string) (string, string, error) 
 		JTI: jti,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Subject:   uid,
-			ExpiresAt: jwt.NewNumericDate(now.Add(7 * 24 * time.Hour)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.refreshTTL)),
 			IssuedAt:  jwt.NewNumericDate(now),
 		},
 	}

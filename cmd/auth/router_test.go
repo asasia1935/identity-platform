@@ -37,7 +37,7 @@ func (s *fakeSessionStoreFailOnCall) Delete(ctx context.Context, uid string) err
 func newTestTokenManager(t *testing.T) *auth.TokenManager {
 	t.Helper()
 
-	tm, err := auth.NewTokenManager("test-secret", 15*time.Minute)
+	tm, err := auth.NewTokenManager("test-secret", 15*time.Minute, 7*24*time.Hour)
 	if err != nil {
 		t.Fatalf("failed to create token manager: %v", err)
 	}

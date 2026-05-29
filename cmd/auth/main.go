@@ -325,7 +325,7 @@ func main() {
 	}
 	defer rdb.Close()
 
-	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL)
+	tm, err := auth.NewTokenManager(cfg.JWTSecret, cfg.AccessTokenTTL, cfg.RefreshTokenTTL)
 	if err != nil {
 		log.Fatal(err)
 	}
