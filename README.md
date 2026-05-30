@@ -121,17 +121,17 @@ Refresh Token은 다음 조건을 만족해야 합니다:
 
 ## 📚 Documentation
 
-- API Contract: docs/api-contract.md
-- Architecture: docs/architecture.md
-- Request Flows: docs/request-flows.md
-- Redis Design: docs/redis-design.md
-- Failure Scenarios: docs/failure-scenarios.md
-- ADR: docs/adr/
+- [API Contract](docs/api-contract.md): Gateway/Auth API 경로, 요청/응답 형식, 상태 코드, downstream service 연동 계약을 정리합니다.
+- [Architecture](docs/architecture.md): Gateway, Auth, Redis 기반 전체 인증 플랫폼 구조와 설계 의도를 설명합니다.
+- [Request Flows](docs/request-flows.md): login, protected API, logout, refresh 요청 흐름을 단계별로 정리합니다.
+- [Redis Design](docs/redis-design.md): session marker, refresh JTI, idempotency lock, rate limit Redis key 정책을 설명합니다.
+- [Failure Scenarios](docs/failure-scenarios.md): token 실패, session 없음, Redis 장애, upstream 장애 등 주요 실패 상황과 응답 정책을 정리합니다.
+- [ADR](docs/adr/): Redis session, refresh rotation, idempotency, rate limit 등 주요 설계 결정을 기록합니다.
 - Policy:
-  - docs/policy/auth-boundary.md
-  - docs/policy/session-policy.md
-  - docs/policy/refresh-policy.md
-  - docs/policy/error-policy.md
+  - [Auth Boundary Policy](docs/policy/auth-boundary.md): Gateway 중심 인증 경계와 `X-User-ID` 전달 정책을 설명합니다.
+  - [Session Policy](docs/policy/session-policy.md): Redis Session을 active login marker로 사용하는 정책을 설명합니다.
+  - [Refresh Policy](docs/policy/refresh-policy.md): Refresh Token 검증, Session 확인, rotation, idempotency 정책을 정리합니다.
+  - [Error Policy](docs/policy/error-policy.md): 인증 실패, 권한 실패, upstream 실패 등 공통 에러 응답 기준을 정리합니다.
 
 ---
 
