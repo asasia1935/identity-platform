@@ -19,7 +19,7 @@ func setValidConfigEnv(t *testing.T) {
 	t.Setenv("REDIS_ADDR", "localhost:6379")
 	t.Setenv("REDIS_PASSWORD", "")
 	t.Setenv("REDIS_DB", "0")
-	t.Setenv("SESSION_TTL", "15m")
+	t.Setenv("SESSION_TTL", "168h")
 }
 
 func TestLoadUsesRefreshRateLimitEnv(t *testing.T) {

@@ -118,7 +118,7 @@ func Load() (Config, error) {
 	}
 	cfg.RedisDB = db
 
-	sessionTTLStr := getEnv("SESSION_TTL", "15m")
+	sessionTTLStr := getEnv("SESSION_TTL", "168h")
 	sessionTTL, err := time.ParseDuration(sessionTTLStr) // Duration으로 파싱
 	if err != nil {
 		return Config{}, errors.New("invalid SESSION_TTL (e.g. 15m, 1h)")
