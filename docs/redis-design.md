@@ -17,7 +17,7 @@ Redis는 다음 목적을 위해 사용됩니다:
 | Key | Purpose |
 |----|----|
 | `sess:{uid}` | 사용자 세션 존재 여부 확인 |
-| `refresh:{uid}` | 현재 유효한 refresh token JTI |
+| `rjti:{uid}` | 현재 유효한 Refresh Token JTI 저장 |
 | `idem:refresh:{jti}` | refresh token JTI 기준 idempotency lock |
 | `rate:login:{ip}` | 로그인 rate limit |
 | `rate:refresh:{uid}` | refresh rate limit |
