@@ -79,6 +79,8 @@ Refresh Token은 다음 조건을 만족해야 합니다:
 - Redis에 저장된 JTI와 일치
 - 세션 존재
 
+Refresh Token만으로는 Access Token을 재발급하지 않습니다. Refresh 요청은 token 검증, Redis Refresh JTI(`rjti:{uid}`) 확인, Redis Session(`sess:{uid}`) 확인을 모두 통과해야 하며, Session이 없으면 Refresh Token이 아직 만료되지 않았더라도 재발급은 실패합니다.
+
 또한, Refresh Token은 1회 사용 원칙(Rotation)을 따릅니다.
 
 ---
