@@ -94,7 +94,9 @@ Refresh Token은 다음 조건을 만족해야 합니다:
 
 ---
 
-### Protected API (/me)
+### Protected API (GET /api/auth/me → GET /auth/me)
+
+Client는 Gateway 경로인 `GET /api/auth/me`를 호출합니다. Gateway는 `/api` prefix를 제거한 뒤 Auth Service의 internal 경로인 `GET /auth/me`로 요청을 전달합니다.
 
 1. Gateway에서 JWT 검증
 2. X-User-ID 헤더 주입
